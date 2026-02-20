@@ -1523,82 +1523,89 @@ function ServerPanel({onClose,user}){
 function PlayerProfileModal({player,status,rep,survey,onClose}){
   const sp=player;
   const st=status;
+  const favs=[sp.fav1,sp.fav2,sp.fav3].filter(Boolean);
+  const surveyFields=survey?[["Playstyle",survey.responses?.style],["PvP",survey.responses?.pvp],["Daily Time",survey.responses?.hours],["Voice Chat",survey.responses?.voice],["Time Zone",survey.responses?.tz],["Version",survey.responses?.version]].filter(([,v])=>v):[];
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.92)",backdropFilter:"blur(10px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={onClose}>
-      <div className="glass" style={{width:"min(96vw,640px)",maxHeight:"90vh",display:"flex",flexDirection:"column",position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)",borderColor:"rgba(0,245,255,.22)"}} onClick={e=>e.stopPropagation()}>
-        {/* STICKY HEADER */}
-        <div style={{padding:"22px 24px 18px",borderBottom:"1px solid rgba(0,245,255,.1)",flexShrink:0}}>
-          <button onClick={onClose} className="close-btn">✕</button>
-          <div style={{display:"flex",gap:18,alignItems:"center"}}>
-            <div style={{position:"relative",flexShrink:0}}>
-              <MCAvatar username={sp.username} size={80} style={{border:`2px solid ${SC[st.status]||"#555"}88`,borderRadius:10}}/>
-              <div style={{position:"absolute",bottom:2,right:2,width:14,height:14,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010c1a",boxShadow:`0 0 10px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
+      <div className="glass" style={{width:"min(96vw,720px)",position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)",borderColor:"rgba(0,245,255,.22)",padding:"20px 22px 22px"}} onClick={e=>e.stopPropagation()}>
+        <button onClick={onClose} className="close-btn">✕</button>
+
+        {/* HEADER */}
+        <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:16,paddingRight:30}}>
+          <div style={{position:"relative",flexShrink:0}}>
+            <MCAvatar username={sp.username} size={68} style={{border:`2px solid ${SC[st.status]||"#555"}88`,borderRadius:10}}/>
+            <div style={{position:"absolute",bottom:1,right:1,width:13,height:13,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010c1a",boxShadow:`0 0 8px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",marginBottom:4}}>
+              <div className="orb" style={{fontSize:16,color:"#fff",letterSpacing:2}}>{sp.username}</div>
+              {sp.isAdmin&&<span style={{fontSize:8,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)",letterSpacing:1}}>★ ADMIN</span>}
+              {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:7,padding:"2px 7px",borderRadius:4,background:"rgba(0,245,255,.08)",border:"1px solid rgba(0,245,255,.22)",color:"var(--cyan)",letterSpacing:1}}>{sp.playstyle.toUpperCase()}</span>}
             </div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
-                <div className="orb" style={{fontSize:17,color:"#fff",letterSpacing:2}}>{sp.username}</div>
-                {sp.isAdmin&&<span style={{fontSize:8,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 8px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)",letterSpacing:1}}>★ ADMIN</span>}
-                {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:8,padding:"2px 8px",borderRadius:4,background:"rgba(0,245,255,.08)",border:"1px solid rgba(0,245,255,.22)",color:"var(--cyan)",letterSpacing:1}}>{sp.playstyle.toUpperCase()}</span>}
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
-                <span className="mono" style={{fontSize:11,color:SC[st.status]||"#555"}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <span style={{color:"var(--amber)",fontSize:13}}>⭐</span>
-                  <span className="mono" style={{fontSize:10,color:"var(--amber)"}}>{rep} rep</span>
-                </div>
-                {sp.joinDate&&<span className="mono" style={{fontSize:9,color:"var(--dim)"}}>Joined {new Date(sp.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>}
-              </div>
+            <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+              <span className="mono" style={{fontSize:10,color:SC[st.status]||"#555"}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
+              <span className="mono" style={{fontSize:10,color:"var(--amber)"}}>⭐ {rep} rep</span>
+              {sp.joinDate&&<span className="mono" style={{fontSize:9,color:"var(--dim)"}}>🗓 Joined {new Date(sp.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>}
             </div>
           </div>
         </div>
 
-        {/* SCROLLABLE BODY */}
-        <div style={{overflowY:"auto",padding:"18px 24px",display:"flex",flexDirection:"column",gap:14}}>
-          {/* CURRENT ACTIVITY */}
-          <div style={{padding:"12px 16px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.12)",borderRadius:9}}>
-            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.45)",letterSpacing:2,marginBottom:5}}>CURRENTLY</div>
-            <div className="mono" style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{st.activity||"Status not set"}</div>
-            {st.updatedAt&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:5}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
+        <div style={{height:1,background:"linear-gradient(to right,rgba(0,245,255,.3),rgba(180,77,255,.2),transparent)",marginBottom:16}}/>
+
+        {/* TWO-COLUMN BODY */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {/* LEFT */}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {/* ACTIVITY */}
+            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.12)",borderRadius:8}}>
+              <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.45)",letterSpacing:2,marginBottom:4}}>CURRENTLY</div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)",lineHeight:1.5}}>{st.activity||"Status not set"}</div>
+              {st.updatedAt&&<div className="mono" style={{fontSize:7,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
+            </div>
+            {/* BIO */}
+            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.03)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.25)",flex:1}}>
+              <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:5}}>ABOUT</div>
+              <div className="mono" style={{fontSize:11,color:sp.bio?"var(--text)":"rgba(0,245,255,.2)",lineHeight:1.7,fontStyle:sp.bio?"normal":"italic"}}>{sp.bio||"No bio set yet."}</div>
+            </div>
           </div>
 
-          {/* BIO */}
-          <div>
-            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>ABOUT</div>
-            {sp.bio
-              ?<div className="mono" style={{fontSize:12,color:"var(--text)",lineHeight:1.85,padding:"12px 16px",background:"rgba(0,245,255,.03)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.3)"}}>{sp.bio}</div>
-              :<div style={{padding:"10px 14px",background:"rgba(0,245,255,.02)",borderRadius:7,border:"1px dashed rgba(0,245,255,.1)"}}><div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.2)",fontStyle:"italic"}}>No bio set yet.</div></div>
-            }
+          {/* RIGHT */}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {/* FAVOURITES */}
+            {favs.length>0&&(
+              <div>
+                <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>FAVOURITE THINGS</div>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  {favs.map((f,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 11px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.13)",borderRadius:6}}>
+                      <span style={{color:"var(--purple)",fontSize:11,flexShrink:0}}>♦</span>
+                      <span className="mono" style={{fontSize:10,color:"var(--text)"}}>{f}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* SURVEY */}
+            {surveyFields.length>0&&(
+              <div>
+                <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>PLAY PROFILE</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+                  {surveyFields.map(([k,v])=>(
+                    <div key={k} style={{padding:"6px 9px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.12)",borderRadius:6}}>
+                      <div className="mono" style={{fontSize:6,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
+                      <div className="mono" style={{fontSize:9,color:"var(--text)"}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* empty right side fallback */}
+            {favs.length===0&&surveyFields.length===0&&(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",flex:1,opacity:.2}}>
+                <div className="mono" style={{fontSize:9,color:"var(--cyan)",textAlign:"center"}}>No extra profile data yet.</div>
+              </div>
+            )}
           </div>
-
-          {/* FAVOURITES */}
-          {(sp.fav1||sp.fav2||sp.fav3)&&(
-            <div>
-              <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>FAVOURITE THINGS</div>
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {[sp.fav1,sp.fav2,sp.fav3].filter(Boolean).map((f,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 13px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.15)",borderRadius:7}}>
-                    <span style={{color:"var(--purple)",fontSize:13,flexShrink:0}}>♦</span>
-                    <span className="mono" style={{fontSize:11,color:"var(--text)"}}>{f}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* SURVEY DATA */}
-          {survey&&(
-            <div>
-              <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>PLAY PROFILE · FROM SURVEY</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:7}}>
-                {[["Playstyle",survey.responses?.style],["PvP",survey.responses?.pvp],["Daily Time",survey.responses?.hours],["Voice Chat",survey.responses?.voice],["Time Zone",survey.responses?.tz],["Version",survey.responses?.version]].filter(([,v])=>v).map(([k,v])=>(
-                  <div key={k} style={{padding:"8px 11px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.13)",borderRadius:7}}>
-                    <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:3}}>{k.toUpperCase()}</div>
-                    <div className="mono" style={{fontSize:11,color:"var(--text)"}}>{v}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
