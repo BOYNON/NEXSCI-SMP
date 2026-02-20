@@ -247,7 +247,7 @@ body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;overf
 .mcard:hover .mc-tl{opacity:1;}.mcard:hover .mc-bl{opacity:.8;}
 
 .overlay{position:fixed;inset:0;background:rgba(0,5,15,.9);backdrop-filter:blur(7px);z-index:100;display:flex;align-items:center;justify-content:center;animation:backdropIn .28s ease;padding:12px;}
-.pmodal{width:min(94vw,880px);max-height:92vh;overflow-y:auto;animation:panelIn .38s cubic-bezier(.22,1,.36,1);position:relative;}
+.pmodal{width:min(94vw,880px);max-height:90vh;animation:panelIn .38s cubic-bezier(.22,1,.36,1);position:absolute;overflow:hidden;}
 .pmodal-wide{width:min(98vw,1080px);}
 
 .si{background:rgba(0,245,255,.04);border:1px solid rgba(0,245,255,.2);border-radius:6px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;padding:10px 14px;outline:none;transition:all .3s;width:100%;}
@@ -324,7 +324,7 @@ body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;overf
 .step-dot{width:8px;height:8px;border-radius:50%;transition:all .3s;}
 
 @media(max-width:640px){
-  .pmodal,.pmodal-wide{width:99vw;max-height:96vh;padding:16px!important;}
+  .pmodal,.pmodal-wide{width:99vw;max-height:96vh;}
   .hub-grid{grid-template-columns:1fr 1fr!important;}
   .survey-grid{grid-template-columns:1fr!important;}
   .player-grid{grid-template-columns:1fr!important;}
@@ -788,21 +788,74 @@ function TopBar({user,serverStatus,onLogout,onSetStatus,onOpenLogin,onOpenAccoun
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PANEL WRAPPER
 // ═══════════════════════════════════════════════════════════════════════════════
+function useDraggable(initialPos){
+  const[pos,setPos]=useState(initialPos);
+  const[dragging,setDragging]=useState(false);
+  const dragOffset=useRef({x:0,y:0});
+  const startDrag=useCallback(e=>{
+    if(e.button!==0)return;
+    setDragging(true);
+    dragOffset.current={x:e.clientX-pos.x,y:e.clientY-pos.y};
+  },[pos]);
+  useEffect(()=>{
+    if(!dragging)return;
+    const move=e=>setPos({
+      x:Math.max(0,Math.min(window.innerWidth-100,e.clientX-dragOffset.current.x)),
+      y:Math.max(0,Math.min(window.innerHeight-60,e.clientY-dragOffset.current.y))
+    });
+    const up=()=>setDragging(false);
+    window.addEventListener("mousemove",move);
+    window.addEventListener("mouseup",up);
+    return()=>{window.removeEventListener("mousemove",move);window.removeEventListener("mouseup",up);};
+  },[dragging]);
+  return{pos,dragging,startDrag};
+}
+
 function Panel({title,subtitle,color="#00f5ff",children,onClose,wide}){
   useEffect(()=>{const h=e=>e.key==="Escape"&&onClose();window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);},[onClose]);
+  const initX=wide?Math.max(0,(window.innerWidth-1080)/2):Math.max(0,(window.innerWidth-880)/2);
+  const initY=Math.max(0,(window.innerHeight-600)/2);
+  const{pos,dragging,startDrag}=useDraggable({x:initX,y:initY});
   return(
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className={`glass pmodal${wide?" pmodal-wide":""}`} style={{padding:24,position:"relative"}}>
-        <button className="close-btn" onClick={onClose}>✕</button>
-        <div style={{marginBottom:4}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:3}}>
-            <div style={{width:3,height:18,background:color,boxShadow:`0 0 8px ${color}`,borderRadius:2}}/>
-            <span className="orb" style={{fontSize:11,color,letterSpacing:3}}>{title}</span>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.75)",backdropFilter:"blur(6px)",zIndex:100,animation:"backdropIn .28s ease"}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className={`glass pmodal${wide?" pmodal-wide":""}`}
+        style={{
+          padding:0,position:"absolute",left:pos.x,top:pos.y,
+          boxShadow:`0 0 0 1px ${color}22, 0 24px 80px rgba(0,0,0,.7), 0 0 40px ${color}08`,
+          border:`1px solid ${color}22`,
+          userSelect:dragging?"none":"auto",
+          cursor:dragging?"grabbing":"auto",
+          maxHeight:"90vh",display:"flex",flexDirection:"column",
+        }}>
+        {/* DRAG HEADER */}
+        <div onMouseDown={startDrag} style={{
+          padding:"14px 18px 12px",
+          borderBottom:`1px solid ${color}18`,
+          cursor:dragging?"grabbing":"grab",
+          background:`linear-gradient(135deg, rgba(0,8,20,.9) 0%, rgba(0,12,28,.8) 100%)`,
+          borderRadius:"12px 12px 0 0",
+          flexShrink:0,
+          display:"flex",alignItems:"center",justifyContent:"space-between",
+          gap:10,
+        }}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:subtitle?3:0}}>
+              <div style={{width:3,height:18,background:color,boxShadow:`0 0 10px ${color}`,borderRadius:2,flexShrink:0}}/>
+              <span className="orb" style={{fontSize:11,color,letterSpacing:3}}>{title}</span>
+              <div style={{display:"flex",gap:3,marginLeft:"auto",opacity:.25}}>
+                {[0,1,2].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:color}}/>)}
+              </div>
+            </div>
+            {subtitle&&<div className="mono" style={{fontSize:9,color:"var(--dim)",letterSpacing:2,marginLeft:13,opacity:.7}}>{subtitle}</div>}
           </div>
-          {subtitle&&<div className="mono" style={{fontSize:9,color:"var(--dim)",letterSpacing:2,marginLeft:13}}>{subtitle}</div>}
+          <button className="close-btn" onClick={onClose} style={{position:"static",flexShrink:0}}>✕</button>
         </div>
-        <div style={{height:1,background:`linear-gradient(to right,${color},${color}44,transparent)`,marginBottom:18}}/>
-        {children}
+        {/* CONTENT */}
+        <div style={{padding:"18px 24px 24px",overflowY:"auto",flex:1}}>
+          <div style={{height:1,background:`linear-gradient(to right,${color},${color}44,transparent)`,marginBottom:18}}/>
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -1525,84 +1578,98 @@ function PlayerProfileModal({player,status,rep,survey,onClose}){
   const st=status;
   const favs=[sp.fav1,sp.fav2,sp.fav3].filter(Boolean);
   const surveyFields=survey?[["Playstyle",survey.responses?.style],["PvP",survey.responses?.pvp],["Daily Time",survey.responses?.hours],["Voice Chat",survey.responses?.voice],["Time Zone",survey.responses?.tz],["Version",survey.responses?.version]].filter(([,v])=>v):[];
+  const initX=Math.max(0,(window.innerWidth-720)/2);
+  const initY=Math.max(0,(window.innerHeight-480)/2);
+  const{pos,dragging,startDrag}=useDraggable({x:initX,y:initY});
+  const color=SC[st.status]||"#555";
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.92)",backdropFilter:"blur(10px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={onClose}>
-      <div className="glass" style={{width:"min(96vw,720px)",position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)",borderColor:"rgba(0,245,255,.22)",padding:"20px 22px 22px"}} onClick={e=>e.stopPropagation()}>
-        <button onClick={onClose} className="close-btn">✕</button>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.8)",backdropFilter:"blur(8px)",zIndex:200,animation:"backdropIn .25s ease"}} onClick={onClose}>
+      <div className="glass" style={{
+        width:"min(96vw,720px)",position:"absolute",left:pos.x,top:pos.y,
+        animation:"panelIn .32s cubic-bezier(.22,1,.36,1)",
+        border:`1px solid ${color}33`,
+        boxShadow:`0 0 0 1px ${color}11, 0 28px 90px rgba(0,0,0,.8), 0 0 60px ${color}06`,
+        userSelect:dragging?"none":"auto",
+        padding:0,
+      }} onClick={e=>e.stopPropagation()}>
 
-        {/* HEADER */}
-        <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:16,paddingRight:30}}>
+        {/* DRAG HEADER */}
+        <div onMouseDown={startDrag} style={{
+          padding:"16px 20px 14px",
+          borderBottom:`1px solid ${color}22`,
+          cursor:dragging?"grabbing":"grab",
+          background:"linear-gradient(135deg,rgba(0,8,20,.95) 0%,rgba(0,12,28,.85) 100%)",
+          borderRadius:"12px 12px 0 0",
+          display:"flex",gap:16,alignItems:"center",
+        }}>
           <div style={{position:"relative",flexShrink:0}}>
-            <MCAvatar username={sp.username} size={68} style={{border:`2px solid ${SC[st.status]||"#555"}88`,borderRadius:10}}/>
-            <div style={{position:"absolute",bottom:1,right:1,width:13,height:13,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010c1a",boxShadow:`0 0 8px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
+            <MCAvatar username={sp.username} size={62} style={{border:`2px solid ${color}66`,borderRadius:10}}/>
+            <div style={{position:"absolute",bottom:1,right:1,width:12,height:12,borderRadius:"50%",background:color,border:"2px solid #010c1a",boxShadow:`0 0 8px ${color}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
           </div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",marginBottom:4}}>
-              <div className="orb" style={{fontSize:16,color:"#fff",letterSpacing:2}}>{sp.username}</div>
-              {sp.isAdmin&&<span style={{fontSize:8,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)",letterSpacing:1}}>★ ADMIN</span>}
+              <div className="orb" style={{fontSize:15,color:"#fff",letterSpacing:2}}>{sp.username}</div>
+              {sp.isAdmin&&<span style={{fontSize:7,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)",letterSpacing:1}}>★ ADMIN</span>}
               {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:7,padding:"2px 7px",borderRadius:4,background:"rgba(0,245,255,.08)",border:"1px solid rgba(0,245,255,.22)",color:"var(--cyan)",letterSpacing:1}}>{sp.playstyle.toUpperCase()}</span>}
             </div>
             <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-              <span className="mono" style={{fontSize:10,color:SC[st.status]||"#555"}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
+              <span className="mono" style={{fontSize:10,color}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
               <span className="mono" style={{fontSize:10,color:"var(--amber)"}}>⭐ {rep} rep</span>
-              {sp.joinDate&&<span className="mono" style={{fontSize:9,color:"var(--dim)"}}>🗓 Joined {new Date(sp.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>}
+              {sp.joinDate&&<span className="mono" style={{fontSize:9,color:"var(--dim)"}}>🗓 {new Date(sp.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>}
             </div>
           </div>
+          <div style={{display:"flex",gap:3,opacity:.2,flexShrink:0}}>
+            {[0,1,2].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:"var(--cyan)"}}/>)}
+          </div>
+          <button onClick={onClose} className="close-btn" style={{position:"static",flexShrink:0}}>✕</button>
         </div>
 
-        <div style={{height:1,background:"linear-gradient(to right,rgba(0,245,255,.3),rgba(180,77,255,.2),transparent)",marginBottom:16}}/>
-
-        {/* TWO-COLUMN BODY */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {/* BODY */}
+        <div style={{padding:"16px 20px 20px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           {/* LEFT */}
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {/* ACTIVITY */}
-            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.12)",borderRadius:8}}>
+            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8}}>
               <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.45)",letterSpacing:2,marginBottom:4}}>CURRENTLY</div>
               <div className="mono" style={{fontSize:11,color:"var(--text)",lineHeight:1.5}}>{st.activity||"Status not set"}</div>
               {st.updatedAt&&<div className="mono" style={{fontSize:7,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
             </div>
-            {/* BIO */}
-            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.03)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.25)",flex:1}}>
+            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.02)",border:"1px solid rgba(0,245,255,.08)",borderRadius:8,borderLeft:`3px solid rgba(0,245,255,.2)`,flex:1}}>
               <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:5}}>ABOUT</div>
-              <div className="mono" style={{fontSize:11,color:sp.bio?"var(--text)":"rgba(0,245,255,.2)",lineHeight:1.7,fontStyle:sp.bio?"normal":"italic"}}>{sp.bio||"No bio set yet."}</div>
+              <div className="mono" style={{fontSize:11,color:sp.bio?"var(--text)":"rgba(0,245,255,.18)",lineHeight:1.7,fontStyle:sp.bio?"normal":"italic"}}>{sp.bio||"No bio set yet."}</div>
             </div>
           </div>
 
           {/* RIGHT */}
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {/* FAVOURITES */}
             {favs.length>0&&(
               <div>
-                <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>FAVOURITE THINGS</div>
+                <div className="mono" style={{fontSize:7,color:"rgba(180,77,255,.5)",letterSpacing:2,marginBottom:6}}>FAVOURITE THINGS</div>
                 <div style={{display:"flex",flexDirection:"column",gap:5}}>
                   {favs.map((f,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 11px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.13)",borderRadius:6}}>
-                      <span style={{color:"var(--purple)",fontSize:11,flexShrink:0}}>♦</span>
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 11px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.12)",borderRadius:6}}>
+                      <span style={{color:"var(--purple)",fontSize:10,flexShrink:0}}>♦</span>
                       <span className="mono" style={{fontSize:10,color:"var(--text)"}}>{f}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-            {/* SURVEY */}
             {surveyFields.length>0&&(
               <div>
-                <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>PLAY PROFILE</div>
+                <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:2,marginBottom:6}}>PLAY PROFILE</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
                   {surveyFields.map(([k,v])=>(
                     <div key={k} style={{padding:"6px 9px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.12)",borderRadius:6}}>
-                      <div className="mono" style={{fontSize:6,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
+                      <div className="mono" style={{fontSize:6,color:"rgba(59,130,246,.45)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
                       <div className="mono" style={{fontSize:9,color:"var(--text)"}}>{v}</div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-            {/* empty right side fallback */}
             {favs.length===0&&surveyFields.length===0&&(
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",flex:1,opacity:.2}}>
-                <div className="mono" style={{fontSize:9,color:"var(--cyan)",textAlign:"center"}}>No extra profile data yet.</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",flex:1}}>
+                <div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.15)",textAlign:"center",fontStyle:"italic"}}>No extra profile data yet.</div>
               </div>
             )}
           </div>
