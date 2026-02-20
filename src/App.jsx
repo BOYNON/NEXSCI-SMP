@@ -164,6 +164,27 @@ const DB = {
       ? { ...u, resetRequested: true, resetRequestedAt: new Date().toISOString() }
       : u));
   },
+  // Feature: Changelog
+  async getChangelog()    { return (await _fbGet("changelog"))    || []; },
+  async setChangelog(v)   { return _fbSet("changelog", v); },
+  // Feature: Countdown events
+  async getEvents()       { return (await _fbGet("events"))       || []; },
+  async setEvents(v)      { return _fbSet("events", v); },
+  // Feature: Polls / Community voting
+  async getPolls()        { return (await _fbGet("polls"))        || []; },
+  async setPolls(v)       { return _fbSet("polls", v); },
+  // Feature: Trade board
+  async getTrades()       { return (await _fbGet("trades"))       || []; },
+  async setTrades(v)      { return _fbSet("trades", v); },
+  // Feature: Achievements
+  async getAchievements() { return (await _fbGet("achievements")) || []; },
+  async setAchievements(v){ return _fbSet("achievements", v); },
+  // Feature: Player reputation / thumbs
+  async getReputation()   { return (await _fbGet("reputation"))   || {}; },
+  async setReputation(v)  { return _fbSet("reputation", v); },
+  // Feature: Server announcements (pinned)
+  async getAnnouncements(){ return (await _fbGet("announcements"))|| []; },
+  async setAnnouncements(v){ return _fbSet("announcements", v); },
 };
 
 
@@ -317,6 +338,26 @@ body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;overf
   .hub-grid{grid-template-columns:1fr!important;}
   .neon-btn{padding:10px 18px!important;font-size:9px!important;}
 }
+
+/* CHANGELOG */
+.cl-entry{border-left:3px solid rgba(0,245,255,.3);padding:10px 14px;margin:6px 0;background:rgba(0,245,255,.02);border-radius:0 6px 6px 0;transition:all .2s;}
+.cl-entry:hover{background:rgba(0,245,255,.06);border-left-color:var(--cyan);}
+/* COUNTDOWN */
+@keyframes countPulse{0%,100%{opacity:1}50%{opacity:.6}}
+.countdown-unit{background:rgba(0,245,255,.06);border:1px solid rgba(0,245,255,.15);border-radius:8px;padding:10px 14px;text-align:center;min-width:60px;}
+/* POLL */
+.poll-bar{height:6px;border-radius:3px;transition:width .6s cubic-bezier(.22,1,.36,1);}
+/* TRADE */
+.trade-card{background:rgba(0,15,35,.74);border:1px solid rgba(57,255,20,.15);border-radius:10px;padding:14px;transition:all .3s;}
+.trade-card:hover{border-color:rgba(57,255,20,.4);box-shadow:0 0 18px rgba(57,255,20,.08);transform:translateY(-2px);}
+/* ACHIEVEMENTS */
+.ach-card{background:rgba(20,10,0,.6);border:1px solid rgba(251,191,36,.18);border-radius:10px;padding:14px;transition:all .3s;position:relative;overflow:hidden;}
+.ach-card.unlocked{border-color:rgba(251,191,36,.5);background:rgba(30,20,0,.7);}
+.ach-card.locked{opacity:.5;filter:grayscale(.6);}
+/* VOTE */
+.vote-opt{padding:10px 14px;border-radius:7px;border:1px solid rgba(0,245,255,.15);cursor:pointer;transition:all .25s;background:rgba(0,245,255,.03);}
+.vote-opt:hover{border-color:var(--cyan);background:rgba(0,245,255,.08);}
+.vote-opt.voted{border-color:var(--cyan);background:rgba(0,245,255,.12);box-shadow:0 0 12px rgba(0,245,255,.15);}
 `;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -786,7 +827,7 @@ function IntroScreen({onEnter}){
         <span style={{color:"#fff"}}>INTERFACE</span>
       </h1>}
       {step>=2&&<p className="mono" style={{fontSize:"clamp(9px,1.5vw,12px)",color:"var(--dim)",letterSpacing:2,textAlign:"center",maxWidth:500,lineHeight:1.9,marginBottom:40,animation:"fadeUp .8s .2s ease both",animationFillMode:"both"}}>
-        PLAYER STATUS · WAR LOGS · SEASON ARCHIVES · LIVE SERVER PING · MUSIC
+        PLAYER STATUS · WAR LOGS · SEASONS · EVENTS · POLLS · TRADES · ACHIEVEMENTS · MUSIC
       </p>}
       {step>=3&&<div style={{animation:"fadeUp .8s ease both",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
         <button className="neon-btn" onClick={onEnter} style={{fontSize:11,letterSpacing:4,padding:"14px 48px",animation:"borderGlow 3s ease-in-out infinite"}}>⟩ ENTER SYSTEM ⟨</button>
@@ -799,23 +840,55 @@ function IntroScreen({onEnter}){
 //  COMMAND HUB — no Survey card
 // ═══════════════════════════════════════════════════════════════════════════════
 const MODS=[
-  {id:"server",   icon:"🖥",  label:"SERVER STATUS",   sub:"Live ping + Aternos",   color:"#39ff14"},
-  {id:"players",  icon:"👤",  label:"PLAYER SYSTEMS",  sub:"Live status + skins",   color:"#00f5ff"},
-  {id:"leaderboard",icon:"🏆",label:"LEADERBOARD",     sub:"Player stats + ranks",  color:"#fbbf24"},
-  {id:"wars",     icon:"⚔️",  label:"WAR LOGS",        sub:"Conflict history",      color:"#ff4444"},
-  {id:"seasons",  icon:"🗓",  label:"SEASON ARCHIVES", sub:"SMP history",           color:"#b44dff"},
-  {id:"rules",    icon:"📜",  label:"PROTOCOL RULES",  sub:"Server regulations",    color:"#fbbf24"},
-  {id:"diag",     icon:"🧪",  label:"DIAGNOSTICS",     sub:"Troubleshoot issues",   color:"#3b82f6"},
-  {id:"admin",    icon:"🛠",  label:"ADMIN CONTROLS",  sub:"Restricted access",     color:"#f97316",adminOnly:true},
+  {id:"server",      icon:"🖥",  label:"SERVER STATUS",    sub:"Live ping + Aternos",    color:"#39ff14"},
+  {id:"players",     icon:"👤",  label:"PLAYER SYSTEMS",   sub:"Live status + profiles", color:"#00f5ff"},
+  {id:"leaderboard", icon:"🏆",  label:"LEADERBOARD",      sub:"Player stats + ranks",   color:"#fbbf24"},
+  {id:"wars",        icon:"⚔️",  label:"WAR LOGS",         sub:"Conflict history",       color:"#ff4444"},
+  {id:"seasons",     icon:"🗓",  label:"SEASON ARCHIVES",  sub:"SMP history",            color:"#b44dff"},
+  {id:"rules",       icon:"📜",  label:"PROTOCOL RULES",   sub:"Server regulations",     color:"#fbbf24"},
+  {id:"diag",        icon:"🧪",  label:"DIAGNOSTICS",      sub:"Troubleshoot issues",    color:"#3b82f6"},
+  {id:"changelog",   icon:"📋",  label:"CHANGELOG",        sub:"Updates & patches",      color:"#00f5ff"},
+  {id:"events",      icon:"🎉",  label:"EVENTS",           sub:"Countdowns & schedule",  color:"#b44dff"},
+  {id:"polls",       icon:"🗳",  label:"COMMUNITY POLLS",  sub:"Vote on server matters", color:"#3b82f6"},
+  {id:"trades",      icon:"💎",  label:"TRADE BOARD",      sub:"Buy · Sell · Trade",     color:"#39ff14"},
+  {id:"achievements",icon:"🏅",  label:"ACHIEVEMENTS",     sub:"Earn your legend",       color:"#fbbf24"},
+  {id:"admin",       icon:"🛠",  label:"ADMIN CONTROLS",   sub:"Restricted access",      color:"#f97316",adminOnly:true},
 ];
+// ─── ANNOUNCEMENT BANNER (shown on hub) ──────────────────────────────────────
+function HubAnnouncements(){
+  const[ann,setAnn]=useState([]);
+  const[idx,setIdx]=useState(0);
+  useEffect(()=>{DB.getAnnouncements().then(a=>setAnn(a.filter(x=>x.active)));},[]);
+  useEffect(()=>{if(ann.length<2)return;const t=setInterval(()=>setIdx(i=>(i+1)%ann.length),5000);return()=>clearInterval(t);},[ann.length]);
+  if(!ann.length)return null;
+  const a=ann[idx];
+  const C={info:"var(--cyan)",warning:"var(--amber)",danger:"var(--red)",event:"var(--purple)"};
+  const col=C[a.type]||"var(--cyan)";
+  return(
+    <div style={{width:"100%",maxWidth:920,marginBottom:16,animation:"fadeDown .5s ease both"}}>
+      <div style={{padding:"10px 16px",background:`${col}0d`,border:`1px solid ${col}33`,borderRadius:8,display:"flex",alignItems:"center",gap:12,position:"relative"}}>
+        <span style={{fontSize:18,flexShrink:0}}>{a.icon||"📢"}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div className="orb" style={{fontSize:8,color:col,letterSpacing:2,marginBottom:2}}>{a.title}</div>
+          <div className="mono" style={{fontSize:10,color:"var(--text)",lineHeight:1.5}}>{a.body}</div>
+        </div>
+        {ann.length>1&&<div style={{display:"flex",gap:4,flexShrink:0}}>
+          {ann.map((_,i)=><div key={i} onClick={()=>setIdx(i)} style={{width:6,height:6,borderRadius:"50%",background:i===idx?col:"rgba(255,255,255,.15)",cursor:"pointer",transition:"background .3s"}}/>)}
+        </div>}
+      </div>
+    </div>
+  );
+}
+
 function CommandHub({onOpen,user}){
   const mods=MODS.filter(m=>!m.adminOnly||(user&&user.isAdmin));
   return(
     <div style={{position:"fixed",inset:0,zIndex:10,display:"flex",flexDirection:"column",alignItems:"center",padding:"74px 16px 16px",overflowY:"auto"}}>
+      <HubAnnouncements/>
       <div style={{textAlign:"center",marginBottom:24,animation:"hubIn .8s ease both"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:5}}>
           <div style={{width:32,height:1,background:"linear-gradient(to right,transparent,#00f5ff)"}}/>
-          <span className="mono" style={{fontSize:8,color:"rgba(0,245,255,.5)",letterSpacing:3}}>COMMAND HUB · v3.0</span>
+          <span className="mono" style={{fontSize:8,color:"rgba(0,245,255,.5)",letterSpacing:3}}>COMMAND HUB · v4.0</span>
           <div style={{width:32,height:1,background:"linear-gradient(to left,transparent,#00f5ff)"}}/>
         </div>
         <h2 className="orb" style={{fontSize:"clamp(13px,2.4vw,22px)",color:"#fff",letterSpacing:4,marginBottom:3}}>NEURAL CONTROL MATRIX</h2>
@@ -972,7 +1045,8 @@ function LoginPanel({onClose,onLogin}){
     if(!pendingUser)return;
     setLoading(true);
     const users=await DB.getUsers();
-    const newUser={...pendingUser,createdAt:new Date().toISOString(),surveyDone:true};
+    const joinDate=new Date().toISOString();
+    const newUser={...pendingUser,createdAt:joinDate,joinDate,surveyDone:true,bio:"",playstyle:surveyData?.style||"",fav1:"",fav2:"",fav3:""};
     await DB.setUsers([...users,newUser]);
     // Whitelist
     const wl=await DB.getWhitelist();
@@ -1082,9 +1156,21 @@ function AccountPanel({user,onClose,onLogin,onLogout}){
   const[err,setErr]=useState("");
   const fileRef=useRef(null);
 
+  const[bio,setBio]=useState("");
+  const[playstyle,setPlaystyle]=useState("");
+  const[favThings,setFavThings]=useState({fav1:"",fav2:"",fav3:""});
+
   useEffect(()=>{
     if(!user.isAdmin){
-      DB.getUsers().then(us=>{const f=us.find(u2=>u2.username===user.username);if(f)setNewStatus(f.displayStatus||"");});
+      DB.getUsers().then(us=>{
+        const f=us.find(u2=>u2.username===user.username);
+        if(f){
+          setNewStatus(f.displayStatus||"");
+          setBio(f.bio||"");
+          setPlaystyle(f.playstyle||"");
+          setFavThings({fav1:f.fav1||"",fav2:f.fav2||"",fav3:f.fav3||""});
+        }
+      });
       DB.getUserPfp(user.username).then(p=>{if(p)setPfpPreview(p);});
     }
   },[user.username,user.isAdmin]);
@@ -1106,7 +1192,7 @@ function AccountPanel({user,onClose,onLogin,onLogout}){
     if(newUsername!==user.username&&users.some(u=>u.username.toLowerCase()===newUsername.toLowerCase()&&u.username!==user.username)){
       setErr("Username already taken.");setSaving(false);return;
     }
-    const updated=users.map(u=>u.username===user.username?{...u,username:newUsername,displayStatus:newStatus}:u);
+    const updated=users.map(u=>u.username===user.username?{...u,username:newUsername,displayStatus:newStatus,bio:bio.trim(),playstyle,fav1:favThings.fav1.trim(),fav2:favThings.fav2.trim(),fav3:favThings.fav3.trim(),joinDate:u.joinDate||new Date().toISOString()}:u);
     await DB.setUsers(updated);
     if(pfpFile){
       toast("Uploading profile picture...","var(--cyan)","\u2b06");
@@ -1167,6 +1253,31 @@ function AccountPanel({user,onClose,onLogin,onLogout}){
           </div>
           <div><label className="si-label">DISPLAY NAME</label><input className="si" value={newName} onChange={e=>setNewName(e.target.value)} disabled={user.isAdmin}/></div>
           <div><label className="si-label">STATUS MESSAGE</label><input className="si" value={newStatus} onChange={e=>setNewStatus(e.target.value)} placeholder="e.g. Building my megabase..." maxLength={80} disabled={user.isAdmin}/></div>
+          {!user.isAdmin&&<>
+            <div><label className="si-label">BIO / ABOUT ME</label><textarea className="si" rows={3} style={{resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)} placeholder="Tell your SMP crew a bit about yourself..." maxLength={200}/><div className="mono" style={{fontSize:8,color:"var(--dim)",textAlign:"right",marginTop:2}}>{bio.length}/200</div></div>
+            <div>
+              <label className="si-label">PLAYSTYLE</label>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {["Builder","Warrior","Explorer","Trader","Engineer","Farmer","Redstoner","PvPer"].map(s=>(
+                  <button key={s} type="button" onClick={()=>setPlaystyle(p=>p===s?"":s)}
+                    style={{fontFamily:"Share Tech Mono",fontSize:9,padding:"5px 10px",borderRadius:5,cursor:"pointer",
+                      background:playstyle===s?"rgba(0,245,255,.15)":"rgba(0,245,255,.03)",
+                      border:`1px solid ${playstyle===s?"var(--cyan)":"rgba(0,245,255,.15)"}`,
+                      color:playstyle===s?"var(--cyan)":"var(--dim)",transition:"all .2s"}}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="si-label">FAVOURITE THINGS (3 max)</label>
+              <div style={{display:"grid",gap:6}}>
+                {[["fav1","e.g. Mega bases"],["fav2","e.g. PvP tournaments"],["fav3","e.g. Trading diamonds"]].map(([k,ph])=>(
+                  <input key={k} className="si" value={favThings[k]} onChange={e=>setFavThings(f=>({...f,[k]:e.target.value}))} placeholder={ph} maxLength={50}/>
+                ))}
+              </div>
+            </div>
+          </>}
           {user.isAdmin&&<div className="mono" style={{fontSize:9,color:"var(--dim)"}}>Admin account — name and status cannot be changed here.</div>}
           <button className="neon-btn" onClick={saveProfile} disabled={saving||user.isAdmin} style={{width:"100%"}}>{saving?"SAVING...":"⟩ SAVE PROFILE ⟨"}</button>
           <button onClick={()=>{onLogout();onClose();}} style={{background:"rgba(255,68,68,.07)",border:"1px solid rgba(255,68,68,.25)",color:"#ff5555",borderRadius:5,padding:"9px",cursor:"pointer",fontFamily:"Orbitron",fontSize:8,letterSpacing:2}}>⟩ LOG OUT ⟨</button>
@@ -1412,6 +1523,10 @@ function PlayersPanel({onClose}){
   const[statuses,setStatuses]=useState({});
   const[users,setUsers]=useState([]);
   const[loading,setLoading]=useState(true);
+  const[selectedPlayer,setSelectedPlayer]=useState(null);
+  const[surveys,setSurveys]=useState([]);
+
+  useEffect(()=>{DB.getSurveys().then(setSurveys);},[]);
 
   useEffect(()=>{
     const load=async()=>{
@@ -1422,10 +1537,10 @@ function PlayersPanel({onClose}){
     return()=>clearInterval(t);
   },[]);
 
-  // Include admin as a player too
+  // Include admin as a player too — keep full user object for bio/playstyle/fav
   const allPlayers=[
-    {username:"AdminOP",role:"Admin",isAdmin:true},
-    ...users.map(u=>({username:u.username,role:u.role||"Player",isAdmin:false}))
+    {username:"AdminOP",role:"Admin",isAdmin:true,bio:"",playstyle:"",fav1:"",fav2:"",fav3:"",joinDate:null},
+    ...users.map(u=>({...u,role:u.role||"Player",isAdmin:false}))
   ];
 
   const onlineCount=allPlayers.filter(p=>{const s=statuses[p.username];return s?.status==="online"||s?.status==="busy";}).length;
@@ -1433,8 +1548,102 @@ function PlayersPanel({onClose}){
   return(
     <Panel title="PLAYER SYSTEMS" subtitle={`LIVE STATUS · ${onlineCount} ACTIVE · ${allPlayers.length} TOTAL`} color="var(--cyan)" onClose={onClose} wide>
       <div style={{marginBottom:12,padding:"8px 12px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:6}}>
-        <div className="mono" style={{fontSize:10,color:"var(--dim)",lineHeight:1.6}}>💡 All registered players appear here. Set your status via <span style={{color:"var(--cyan)"}}>📊 STATUS</span> in the top bar. Auto-refreshes every 6s.</div>
+        <div className="mono" style={{fontSize:10,color:"var(--dim)",lineHeight:1.6}}>💡 All registered players appear here. Set your status via <span style={{color:"var(--cyan)"}}>📊 STATUS</span> in the top bar. Click any card to see full profile. Auto-refreshes every 6s.</div>
       </div>
+
+      {/* FULL PLAYER PROFILE MODAL */}
+      {selectedPlayer&&(()=>{
+        const sp=selectedPlayer;
+        const st=statuses[sp.username]||{status:"offline",activity:"Status not set"};
+        const survey=surveys.find(s=>s.username===sp.username);
+        return(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.92)",backdropFilter:"blur(8px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setSelectedPlayer(null)}>
+            <div className="glass" style={{width:"min(94vw,520px)",maxHeight:"88vh",overflowY:"auto",padding:24,position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)"}} onClick={e=>e.stopPropagation()}>
+              <button onClick={()=>setSelectedPlayer(null)} className="close-btn">✕</button>
+
+              {/* HEADER */}
+              <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:20}}>
+                <div style={{position:"relative",flexShrink:0}}>
+                  <MCAvatar username={sp.username} size={72} style={{border:`2px solid ${SC[st.status]||"#555"}66`}}/>
+                  <div style={{position:"absolute",bottom:-1,right:-1,width:14,height:14,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010812",boxShadow:`0 0 8px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                    <div className="orb" style={{fontSize:15,color:"#fff",letterSpacing:2}}>{sp.username}</div>
+                    {sp.isAdmin&&<span style={{fontSize:9,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)"}}>★ ADMIN</span>}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                    <span className="mono" style={{fontSize:11,color:SC[st.status]||"#555"}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
+                  </div>
+                  {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:8,padding:"3px 9px",borderRadius:4,background:"rgba(0,245,255,.1)",border:"1px solid rgba(0,245,255,.25)",color:"var(--cyan)",letterSpacing:2}}>{sp.playstyle.toUpperCase()}</span>}
+                  <div style={{display:"flex",alignItems:"center",gap:5,marginTop:4}}><span style={{color:"var(--amber)",fontSize:12}}>⭐</span><span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{statuses[sp.username]?.rep||0} reputation</span></div>
+                </div>
+              </div>
+
+              <div style={{height:1,background:"linear-gradient(to right,var(--cyan),var(--purple),transparent)",marginBottom:18}}/>
+
+              {/* CURRENT ACTIVITY */}
+              <div style={{marginBottom:16,padding:"10px 14px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8}}>
+                <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:4}}>CURRENTLY</div>
+                <div className="mono" style={{fontSize:12,color:"var(--text)"}}>{st.activity||"Status not set"}</div>
+                {st.updatedAt&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
+              </div>
+
+              {/* BIO */}
+              {sp.bio&&(
+                <div style={{marginBottom:16}}>
+                  <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>ABOUT</div>
+                  <div className="mono" style={{fontSize:12,color:"var(--text)",lineHeight:1.8,padding:"10px 14px",background:"rgba(0,245,255,.03)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.3)"}}>"{sp.bio}"</div>
+                </div>
+              )}
+
+              {/* FAVOURITE THINGS */}
+              {(sp.fav1||sp.fav2||sp.fav3)&&(
+                <div style={{marginBottom:16}}>
+                  <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>FAVOURITE THINGS</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {[sp.fav1,sp.fav2,sp.fav3].filter(Boolean).map((f,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.15)",borderRadius:6}}>
+                        <span style={{color:"var(--purple)",fontSize:14}}>♦</span>
+                        <span className="mono" style={{fontSize:11,color:"var(--text)"}}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* PLAYSTYLE FROM SURVEY */}
+              {survey&&(
+                <div style={{marginBottom:16}}>
+                  <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>PLAY PROFILE (from signup survey)</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+                    {[
+                      ["Playstyle",survey.responses?.style],
+                      ["PvP",survey.responses?.pvp],
+                      ["Daily Time",survey.responses?.hours],
+                      ["Voice Chat",survey.responses?.voice],
+                      ["Time Zone",survey.responses?.tz],
+                      ["Version",survey.responses?.version],
+                    ].filter(([,v])=>v).map(([k,v])=>(
+                      <div key={k} style={{padding:"6px 10px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.12)",borderRadius:6}}>
+                        <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
+                        <div className="mono" style={{fontSize:10,color:"var(--text)"}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* JOIN DATE */}
+              {sp.joinDate&&(
+                <div className="mono" style={{fontSize:9,color:"var(--dim)",padding:"8px 12px",background:"rgba(0,0,0,.2)",borderRadius:6}}>
+                  🗓 Joined NexSci SMP on {new Date(sp.joinDate).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {loading
         ?<div style={{textAlign:"center",padding:"40px 0"}}><div className="mono" style={{color:"var(--dim)"}}>LOADING...</div></div>
         :allPlayers.length<=1
@@ -1442,11 +1651,12 @@ function PlayersPanel({onClose}){
             <div style={{fontSize:32,marginBottom:10}}>👾</div>
             <div className="mono" style={{fontSize:11,color:"var(--dim)"}}>NO PLAYERS REGISTERED YET.<br/>Sign up to appear here!</div>
           </div>
-          :<div className="player-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:12,maxHeight:"62vh",overflowY:"auto"}}>
+          :<div className="player-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14,maxHeight:"68vh",overflowY:"auto"}}>
             {allPlayers.map(p=>{
               const st=statuses[p.username]||{status:"offline",activity:"Status not set"};
               return(
-                <div className="pcard" key={p.username}>
+                <div className="pcard" key={p.username} style={{cursor:"pointer"}} onClick={()=>setSelectedPlayer(sp=>sp?.username===p.username?null:p)}>
+                  {/* HEADER ROW */}
                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
                     <div style={{position:"relative",flexShrink:0}}>
                       <MCAvatar username={p.username} size={42} style={{border:`2px solid ${SC[st.status]||"#555"}44`}}/>
@@ -1458,13 +1668,67 @@ function PlayersPanel({onClose}){
                         {p.isAdmin&&<span style={{fontSize:7,color:"var(--orange)",fontFamily:"Orbitron"}}>★</span>}
                       </div>
                       <span className="mono" style={{fontSize:9,color:SC[st.status]||"#555",letterSpacing:1}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
-                      <div className="mono" style={{fontSize:8,color:"var(--dim)"}}>{p.role}</div>
+                      {p.playstyle&&<div style={{marginTop:2}}><span style={{fontFamily:"Orbitron",fontSize:7,padding:"2px 6px",borderRadius:3,background:"rgba(0,245,255,.08)",border:"1px solid rgba(0,245,255,.2)",color:"var(--cyan)",letterSpacing:1}}>{p.playstyle.toUpperCase()}</span></div>}
                     </div>
                   </div>
-                  <div className="mono" style={{fontSize:10,color:"var(--text)",lineHeight:1.5,borderTop:"1px solid rgba(0,245,255,.07)",paddingTop:8}}>
+                  {/* CURRENT ACTIVITY */}
+                  <div className="mono" style={{fontSize:10,color:"var(--text)",lineHeight:1.5,borderTop:"1px solid rgba(0,245,255,.07)",paddingTop:8,marginBottom:6}}>
                     <span style={{color:"rgba(0,245,255,.4)"}}>DOING › </span>{st.activity||"Status not set"}
                   </div>
-                  {st.updatedAt&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleTimeString()}</div>}
+                  {/* BIO */}
+                  {p.bio
+                    ?<div className="mono" style={{fontSize:10,color:"var(--dim)",lineHeight:1.6,marginBottom:6,padding:"6px 8px",background:"rgba(0,245,255,.03)",borderRadius:5,borderLeft:"2px solid rgba(0,245,255,.2)"}}>"{p.bio}"</div>
+                    :!p.isAdmin&&<div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.15)",marginBottom:6,fontStyle:"italic"}}>No bio set yet...</div>
+                  }
+                  {/* FAVOURITES */}
+                  {!(p.fav1||p.fav2||p.fav3)&&!p.isAdmin&&<div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.12)",marginBottom:4,fontStyle:"italic"}}>No favourites set...</div>}
+                  {(p.fav1||p.fav2||p.fav3)&&(
+                    <div style={{marginBottom:6}}>
+                      <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.35)",letterSpacing:2,marginBottom:4}}>FAVOURITE THINGS</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                        {[p.fav1,p.fav2,p.fav3].filter(Boolean).map((f,i)=>(
+                          <div key={i} className="mono" style={{fontSize:9,color:"var(--text)",display:"flex",alignItems:"center",gap:5}}>
+                            <span style={{color:"var(--cyan)",fontSize:8}}>♦</span>{f}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* JOIN DATE */}
+                  {p.joinDate&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4}}>Joined {new Date(p.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>}
+                  {/* REPUTATION */}
+                  {(()=>{
+                    const myRep=statuses[p.username]?.rep||0;
+                    const hasEndorsed=user&&(statuses[p.username]?.endorsedBy||[]).includes(user.username);
+                    const canEndorse=user&&user.username!==p.username&&!p.isAdmin;
+                    return(
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:6,borderTop:"1px solid rgba(0,245,255,.06)"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:5}}>
+                          <span style={{color:"var(--amber)",fontSize:11}}>⭐</span>
+                          <span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{myRep} rep</span>
+                        </div>
+                        {canEndorse&&(
+                          <button type="button" onClick={async e=>{e.stopPropagation();
+                            const ps=await DB.getPlayerStatus();
+                            const cur=ps[p.username]||{};
+                            const endorsed=cur.endorsedBy||[];
+                            const already=endorsed.includes(user.username);
+                            const newEndorsed=already?endorsed.filter(x=>x!==user.username):[...endorsed,user.username];
+                            const updated={...ps,[p.username]:{...cur,endorsedBy:newEndorsed,rep:newEndorsed.length}};
+                            await DB.setPlayerStatus(updated);
+                            setStatuses(updated);
+                          }} style={{fontFamily:"Share Tech Mono",fontSize:8,padding:"3px 9px",borderRadius:4,cursor:"pointer",transition:"all .2s",
+                            background:hasEndorsed?"rgba(251,191,36,.15)":"rgba(0,245,255,.04)",
+                            border:`1px solid ${hasEndorsed?"rgba(251,191,36,.5)":"rgba(0,245,255,.15)"}`,
+                            color:hasEndorsed?"var(--amber)":"var(--dim)"}}>
+                            {hasEndorsed?"★ ENDORSED":"☆ ENDORSE"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {/* CLICK HINT */}
+                  <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.2)",marginTop:4,textAlign:"right"}}>click for full profile ›</div>
                 </div>
               );
             })}
@@ -2065,6 +2329,8 @@ function AdminPanel({onClose,user}){
 
         {/* BROADCAST */}
         {tab==="broadcast"&&<BroadcastTab user={user} toast={toast}/>}
+        {tab==="announce"&&<AnnounceTab toast={toast}/>}
+        {tab==="stats"&&<StatsTab/>}
       </div>
     </Panel>
   );
@@ -2093,10 +2359,580 @@ function BroadcastTab({user,toast}){
   );
 }
 
+// ─── FEATURE 9: ANNOUNCEMENTS admin tab (pinned banners on hub) ───────────────
+function AnnounceTab({toast}){
+  const[ann,setAnn]=useState([]);
+  const[form,setForm]=useState({title:"",body:"",type:"info",icon:"📢",active:true});
+  useEffect(()=>{DB.getAnnouncements().then(setAnn);},[]);
+  const TYPES={info:"var(--cyan)",warning:"var(--amber)",danger:"var(--red)",event:"var(--purple)"};
+  const add=async()=>{
+    if(!form.title.trim()||!form.body.trim())return;
+    const a=[{id:Date.now(),...form,createdAt:new Date().toISOString()},...ann];
+    setAnn(a);await DB.setAnnouncements(a);
+    setForm({title:"",body:"",type:"info",icon:"📢",active:true});
+    toast("Announcement posted!","var(--cyan)","📢");
+  };
+  const toggle=async id=>{const a=ann.map(x=>x.id===id?{...x,active:!x.active}:x);setAnn(a);await DB.setAnnouncements(a);};
+  const del=async id=>{const a=ann.filter(x=>x.id!==id);setAnn(a);await DB.setAnnouncements(a);};
+  return(
+    <div>
+      <div className="orb" style={{fontSize:8,color:"var(--cyan)",letterSpacing:2,marginBottom:14}}>📢 HUB ANNOUNCEMENTS</div>
+      <div style={{padding:"7px 12px",background:"rgba(0,245,255,.04)",border:"1px dashed rgba(0,245,255,.2)",borderRadius:6,marginBottom:14}}>
+        <div className="mono" style={{fontSize:9,color:"var(--dim)",lineHeight:1.7}}>Active announcements appear as a banner on the main hub screen for all visitors. Use for server news, events, warnings.</div>
+      </div>
+      <div style={{display:"grid",gap:8,marginBottom:16,maxWidth:500}}>
+        <div style={{display:"flex",gap:8}}><div style={{flex:1}}><label className="si-label">TITLE</label><input className="si" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Announcement title"/></div><div style={{width:70}}><label className="si-label">ICON</label><input className="si" value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))}/></div></div>
+        <div><label className="si-label">MESSAGE</label><textarea className="si" rows={2} style={{resize:"vertical"}} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} placeholder="Announcement body..."/></div>
+        <div><label className="si-label">TYPE</label><select className="si" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{Object.keys(TYPES).map(t=><option key={t} value={t}>{t.toUpperCase()}</option>)}</select></div>
+        <button className="neon-btn" onClick={add} style={{borderColor:"var(--cyan)",color:"var(--cyan)",fontSize:9}}>⟩ POST ANNOUNCEMENT ⟨</button>
+      </div>
+      {ann.map(a=>{
+        const col=TYPES[a.type]||"var(--cyan)";
+        return(
+          <div key={a.id} style={{border:`1px solid ${col}33`,borderRadius:8,padding:"10px 14px",marginBottom:8,background:`${col}08`,opacity:a.active?1:.5}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span>{a.icon}</span>
+                <div>
+                  <div className="orb" style={{fontSize:9,color:col}}>{a.title}</div>
+                  <div className="mono" style={{fontSize:8,color:"var(--dim)"}}>{new Date(a.createdAt).toLocaleDateString()}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <button onClick={()=>toggle(a.id)} style={{fontFamily:"Share Tech Mono",fontSize:8,padding:"3px 8px",borderRadius:3,border:`1px solid ${a.active?"rgba(57,255,20,.4)":"rgba(100,100,100,.3)"}`,color:a.active?"var(--green)":"var(--dim)",background:"none",cursor:"pointer"}}>{a.active?"LIVE":"HIDDEN"}</button>
+                <button onClick={()=>del(a.id)} style={{background:"none",border:"none",color:"rgba(255,68,68,.5)",cursor:"pointer",fontSize:14}}>×</button>
+              </div>
+            </div>
+            <div className="mono" style={{fontSize:10,color:"var(--text)"}}>{a.body}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── FEATURE 10: SERVER STATS tab ─────────────────────────────────────────────
+function StatsTab(){
+  const[users,setUsers]=useState([]);
+  const[surveys,setSurveys]=useState([]);
+  const[wars,setWars]=useState([]);
+  const[music,setMusic]=useState([]);
+  const[trades,setTrades]=useState([]);
+  const[achs,setAchs]=useState([]);
+  useEffect(()=>{
+    Promise.all([DB.getUsers(),DB.getSurveys(),DB.getWars(),DB.getMusicList(),DB.getTrades(),DB.getAchievements()])
+      .then(([u,sv,w,m,t,a])=>{setUsers(u);setSurveys(sv);setWars(w);setMusic(m);setTrades(t);setAchs(a);});
+  },[]);
+  const playstyles=users.reduce((acc,u)=>{if(u.playstyle)acc[u.playstyle]=(acc[u.playstyle]||0)+1;return acc;},{});
+  const topStyle=Object.entries(playstyles).sort((a,b)=>b[1]-a[1])[0];
+  const joinDates=users.filter(u=>u.joinDate).sort((a,b)=>new Date(a.joinDate)-new Date(b.joinDate));
+  const stats=[
+    {icon:"👤",label:"Registered Players",value:users.length,color:"var(--cyan)"},
+    {icon:"📋",label:"Survey Responses",value:surveys.length,color:"var(--blue)"},
+    {icon:"⚔️",label:"Wars Recorded",value:wars.length,color:"var(--red)"},
+    {icon:"🎵",label:"Music Tracks",value:music.length,color:"var(--purple)"},
+    {icon:"💎",label:"Trade Listings",value:trades.length,color:"var(--green)"},
+    {icon:"🏅",label:"Achievements Created",value:achs.length,color:"var(--amber)"},
+    {icon:"🏆",label:"Achievements Awarded",value:achs.reduce((s,a)=>s+a.awardedTo.length,0),color:"var(--amber)"},
+    {icon:"🎮",label:"Top Playstyle",value:topStyle?`${topStyle[0]} (${topStyle[1]})`:"-",color:"var(--cyan)"},
+  ];
+  return(
+    <div>
+      <div className="orb" style={{fontSize:8,color:"var(--blue)",letterSpacing:2,marginBottom:14}}>📊 SERVER STATISTICS</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10,marginBottom:20}}>
+        {stats.map(s=>(
+          <div key={s.label} style={{background:`${s.color}0a`,border:`1px solid ${s.color}22`,borderRadius:8,padding:"12px 14px",textAlign:"center"}}>
+            <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
+            <div className="orb" style={{fontSize:14,color:s.color,marginBottom:4}}>{s.value}</div>
+            <div className="mono" style={{fontSize:8,color:"var(--dim)",lineHeight:1.5}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      {joinDates.length>0&&(
+        <div>
+          <div className="mono" style={{fontSize:8,color:"var(--dim)",letterSpacing:2,marginBottom:8}}>FIRST TO JOIN</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {joinDates.slice(0,5).map((u,i)=>(
+              <div key={u.username} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 10px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:6}}>
+                <span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{i+1}.</span>
+                <span className="mono" style={{fontSize:9,color:"var(--text)"}}>{u.username}</span>
+                <span className="mono" style={{fontSize:8,color:"var(--dim)"}}>{new Date(u.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Object.keys(playstyles).length>0&&(
+        <div style={{marginTop:16}}>
+          <div className="mono" style={{fontSize:8,color:"var(--dim)",letterSpacing:2,marginBottom:8}}>PLAYSTYLE BREAKDOWN</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {Object.entries(playstyles).sort((a,b)=>b[1]-a[1]).map(([style,count])=>{
+              const pct=Math.round((count/users.length)*100);
+              return(
+                <div key={style}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                    <span className="mono" style={{fontSize:10,color:"var(--text)"}}>{style}</span>
+                    <span className="mono" style={{fontSize:9,color:"var(--cyan)"}}>{count} · {pct}%</span>
+                  </div>
+                  <div style={{height:5,background:"rgba(0,245,255,.08)",borderRadius:3,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:"rgba(0,245,255,.5)",borderRadius:3,transition:"width .6s ease"}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 1: CHANGELOG — admin posts updates, everyone sees them
+// ═══════════════════════════════════════════════════════════════════════════════
+function ChangelogPanel({onClose,user}){
+  const toast=useToast();
+  const[entries,setEntries]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[form,setForm]=useState({version:"",title:"",body:"",type:"update"});
+  const[adding,setAdding]=useState(false);
+  useEffect(()=>{DB.getChangelog().then(e=>{setEntries(e);setLoading(false);});},[]);
+  const TYPES={update:{color:"var(--cyan)",icon:"🔄"},hotfix:{color:"var(--red)",icon:"🔥"},event:{color:"var(--purple)",icon:"🎉"},season:{color:"var(--amber)",icon:"🗓"}};
+  const add=async()=>{
+    if(!form.title.trim()||!form.body.trim())return;
+    setAdding(true);
+    const e=[{id:Date.now(),postedAt:new Date().toISOString(),postedBy:user.username,...form},...entries];
+    setEntries(e);await DB.setChangelog(e);
+    await DB.pushNotif({type:"system",title:`CHANGELOG: ${form.title.toUpperCase()}`,body:form.body.slice(0,80)});
+    setForm({version:"",title:"",body:"",type:"update"});setAdding(false);
+    toast("Changelog posted!","var(--cyan)","📋");
+  };
+  const del=async id=>{const e=entries.filter(x=>x.id!==id);setEntries(e);await DB.setChangelog(e);};
+  return(
+    <Panel title="SERVER CHANGELOG" subtitle="UPDATES · PATCHES · EVENTS" color="var(--cyan)" onClose={onClose} wide>
+      <div style={{maxHeight:"72vh",overflowY:"auto"}}>
+        {user?.isAdmin&&(
+          <div style={{background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.15)",borderRadius:8,padding:14,marginBottom:18}}>
+            <div className="orb" style={{fontSize:7,color:"var(--cyan)",letterSpacing:2,marginBottom:10}}>+ POST UPDATE</div>
+            <div style={{display:"grid",gap:8}}>
+              <div style={{display:"flex",gap:8}}>
+                <div style={{flex:1}}><label className="si-label">TYPE</label>
+                  <select className="si" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
+                    {Object.keys(TYPES).map(t=><option key={t} value={t}>{t.toUpperCase()}</option>)}
+                  </select>
+                </div>
+                <div style={{width:100}}><label className="si-label">VERSION</label><input className="si" value={form.version} onChange={e=>setForm(f=>({...f,version:e.target.value}))} placeholder="v1.2.0"/></div>
+              </div>
+              <div><label className="si-label">TITLE</label><input className="si" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="What changed?"/></div>
+              <div><label className="si-label">DETAILS</label><textarea className="si" rows={3} style={{resize:"vertical"}} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} placeholder="Describe the changes..."/></div>
+              <button className="neon-btn" onClick={add} disabled={adding} style={{borderColor:"var(--cyan)",color:"var(--cyan)",fontSize:9}}>{adding?"POSTING...":"⟩ POST CHANGELOG ⟨"}</button>
+            </div>
+          </div>
+        )}
+        {loading?<div className="mono" style={{color:"var(--dim)",textAlign:"center",padding:"30px 0"}}>LOADING...</div>
+        :entries.length===0?<div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontSize:32,marginBottom:8}}>📋</div><div className="mono" style={{color:"var(--dim)"}}>No changelog entries yet.</div></div>
+        :entries.map(e=>{
+          const T=TYPES[e.type]||TYPES.update;
+          return(
+            <div key={e.id} className="cl-entry" style={{borderLeftColor:T.color}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:6,marginBottom:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:16}}>{T.icon}</span>
+                  <div>
+                    <div style={{display:"flex",alignItems:"center",gap:7}}>
+                      <span className="orb" style={{fontSize:10,color:T.color}}>{e.title}</span>
+                      {e.version&&<span className="mono" style={{fontSize:8,padding:"1px 6px",border:`1px solid ${T.color}44`,borderRadius:3,color:T.color}}>{e.version}</span>}
+                    </div>
+                    <div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:2}}>{new Date(e.postedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} · by {e.postedBy}</div>
+                  </div>
+                </div>
+                {user?.isAdmin&&<button onClick={()=>del(e.id)} style={{background:"none",border:"none",color:"rgba(255,68,68,.5)",cursor:"pointer",fontSize:13}}>×</button>}
+              </div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{e.body}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 2: EVENT COUNTDOWN — admin sets events with dates, everyone sees timer
+// ═══════════════════════════════════════════════════════════════════════════════
+function useCountdown(target){
+  const[diff,setDiff]=useState(0);
+  useEffect(()=>{
+    const calc=()=>setDiff(Math.max(0,new Date(target)-Date.now()));
+    calc();const t=setInterval(calc,1000);return()=>clearInterval(t);
+  },[target]);
+  const d=Math.floor(diff/86400000);
+  const h=Math.floor((diff%86400000)/3600000);
+  const m=Math.floor((diff%3600000)/60000);
+  const s=Math.floor((diff%60000)/1000);
+  return{d,h,m,s,over:diff===0};
+}
+function CountdownUnit({n,label}){
+  return(
+    <div className="countdown-unit">
+      <div className="orb" style={{fontSize:22,color:"var(--cyan)",lineHeight:1}}>{String(n).padStart(2,"0")}</div>
+      <div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4,letterSpacing:2}}>{label}</div>
+    </div>
+  );
+}
+function EventsPanel({onClose,user}){
+  const toast=useToast();
+  const[events,setEvents]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[form,setForm]=useState({name:"",date:"",desc:"",icon:"🎮"});
+  const[now,setNow]=useState(Date.now());
+  useEffect(()=>{DB.getEvents().then(e=>{setEvents(e);setLoading(false);});},[]);
+  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
+  const add=async()=>{
+    if(!form.name.trim()||!form.date)return;
+    const e=[...events,{id:Date.now(),...form,createdBy:user.username}].sort((a,b)=>new Date(a.date)-new Date(b.date));
+    setEvents(e);await DB.setEvents(e);
+    setForm({name:"",date:"",desc:"",icon:"🎮"});toast("Event added!","var(--purple)","🎉");
+  };
+  const del=async id=>{const e=events.filter(x=>x.id!==id);setEvents(e);await DB.setEvents(e);};
+  const upcoming=events.filter(e=>new Date(e.date)>now).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const past=events.filter(e=>new Date(e.date)<=now).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  function EventCard({ev}){
+    const{d,h,m,s,over}=useCountdown(ev.date);
+    return(
+      <div style={{border:`1px solid ${over?"rgba(100,100,100,.2)":"rgba(180,77,255,.25)"}`,borderRadius:10,padding:16,marginBottom:12,background:over?"rgba(10,10,10,.4)":"rgba(20,5,40,.5)",opacity:over?.6:1}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:28}}>{ev.icon}</span>
+            <div>
+              <div className="orb" style={{fontSize:11,color:over?"var(--dim)":"var(--purple)",letterSpacing:1}}>{ev.name}</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>{new Date(ev.date).toLocaleString()}</div>
+            </div>
+          </div>
+          {user?.isAdmin&&<button onClick={()=>del(ev.id)} style={{background:"none",border:"none",color:"rgba(255,68,68,.5)",cursor:"pointer",fontSize:14}}>×</button>}
+        </div>
+        {ev.desc&&<div className="mono" style={{fontSize:10,color:"var(--text)",marginBottom:10,lineHeight:1.6}}>{ev.desc}</div>}
+        {over
+          ?<div className="orb" style={{fontSize:9,color:"var(--dim)",letterSpacing:3,textAlign:"center",padding:"8px 0"}}>EVENT HAS PASSED</div>
+          :<div style={{display:"flex",gap:8,justifyContent:"center"}}>
+            <CountdownUnit n={d} label="DAYS"/>
+            <CountdownUnit n={h} label="HRS"/>
+            <CountdownUnit n={m} label="MIN"/>
+            <CountdownUnit n={s} label="SEC"/>
+          </div>
+        }
+      </div>
+    );
+  }
+  return(
+    <Panel title="EVENTS & COUNTDOWNS" subtitle="UPCOMING SMP EVENTS" color="var(--purple)" onClose={onClose} wide>
+      <div style={{maxHeight:"72vh",overflowY:"auto"}}>
+        {user?.isAdmin&&(
+          <div style={{background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.2)",borderRadius:8,padding:14,marginBottom:18}}>
+            <div className="orb" style={{fontSize:7,color:"var(--purple)",letterSpacing:2,marginBottom:10}}>+ ADD EVENT</div>
+            <div style={{display:"grid",gap:8}}>
+              <div style={{display:"flex",gap:8}}><div style={{flex:1}}><label className="si-label">EVENT NAME</label><input className="si" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Season 2 Launch"/></div><div style={{width:70}}><label className="si-label">ICON</label><input className="si" value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))} placeholder="🎮"/></div></div>
+              <div><label className="si-label">DATE & TIME</label><input className="si" type="datetime-local" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></div>
+              <div><label className="si-label">DESCRIPTION (optional)</label><input className="si" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="What happens at this event?"/></div>
+              <button className="neon-btn" onClick={add} style={{borderColor:"var(--purple)",color:"var(--purple)",fontSize:9}}>⟩ ADD EVENT ⟨</button>
+            </div>
+          </div>
+        )}
+        {loading?<div className="mono" style={{color:"var(--dim)",textAlign:"center",padding:"30px 0"}}>LOADING...</div>
+        :<>
+          {upcoming.length===0&&past.length===0&&<div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontSize:32,marginBottom:8}}>🗓</div><div className="mono" style={{color:"var(--dim)"}}>No events scheduled yet.</div></div>}
+          {upcoming.length>0&&<><div className="orb" style={{fontSize:8,color:"var(--purple)",letterSpacing:2,marginBottom:12}}>UPCOMING · {upcoming.length}</div>{upcoming.map(e=><EventCard key={e.id} ev={e}/>)}</>}
+          {past.length>0&&<><div className="orb" style={{fontSize:8,color:"var(--dim)",letterSpacing:2,marginBottom:12,marginTop:16}}>PAST EVENTS · {past.length}</div>{past.map(e=><EventCard key={e.id} ev={e}/>)}</>}
+        </>}
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 3: COMMUNITY POLLS — players vote, see live results
+// ═══════════════════════════════════════════════════════════════════════════════
+function PollsPanel({onClose,user}){
+  const toast=useToast();
+  const[polls,setPolls]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[form,setForm]=useState({question:"",options:["",""],multi:false});
+  useEffect(()=>{DB.getPolls().then(p=>{setPolls(p);setLoading(false);});},[]);
+  const addOption=()=>setForm(f=>({...f,options:[...f.options,""]}));
+  const setOpt=(i,v)=>setForm(f=>({...f,options:f.options.map((o,j)=>j===i?v:o)}));
+  const createPoll=async()=>{
+    const opts=form.options.filter(o=>o.trim());
+    if(!form.question.trim()||opts.length<2)return;
+    const p=[{id:Date.now(),question:form.question.trim(),options:opts.map(o=>({text:o.trim(),votes:[]})),multi:form.multi,createdAt:new Date().toISOString(),createdBy:user.username,active:true},...polls];
+    setPolls(p);await DB.setPolls(p);
+    setForm({question:"",options:["",""],multi:false});toast("Poll created!","var(--blue)","🗳");
+  };
+  const vote=async(pollId,optIdx)=>{
+    if(!user)return toast("Log in to vote.","var(--red)","⚠");
+    const updated=polls.map(p=>{
+      if(p.id!==pollId)return p;
+      const opts=p.options.map((o,i)=>{
+        if(!p.multi){const filtered=o.votes.filter(v=>v!==user.username);return i===optIdx?{...o,votes:[...filtered,user.username]}:{...o,votes:filtered};}
+        if(i===optIdx){const has=o.votes.includes(user.username);return{...o,votes:has?o.votes.filter(v=>v!==user.username):[...o.votes,user.username]};}
+        return o;
+      });
+      return{...p,options:opts};
+    });
+    setPolls(updated);await DB.setPolls(updated);
+  };
+  const closePoll=async id=>{const p=polls.map(x=>x.id===id?{...x,active:false}:x);setPolls(p);await DB.setPolls(p);};
+  const delPoll=async id=>{const p=polls.filter(x=>x.id!==id);setPolls(p);await DB.setPolls(p);};
+  return(
+    <Panel title="COMMUNITY POLLS" subtitle="VOTE · DECIDE · TOGETHER" color="var(--blue)" onClose={onClose} wide>
+      <div style={{maxHeight:"72vh",overflowY:"auto"}}>
+        {user?.isAdmin&&(
+          <div style={{background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.2)",borderRadius:8,padding:14,marginBottom:18}}>
+            <div className="orb" style={{fontSize:7,color:"var(--blue)",letterSpacing:2,marginBottom:10}}>+ CREATE POLL</div>
+            <div style={{display:"grid",gap:8}}>
+              <div><label className="si-label">QUESTION</label><input className="si" value={form.question} onChange={e=>setForm(f=>({...f,question:e.target.value}))} placeholder="What should we vote on?"/></div>
+              {form.options.map((o,i)=><div key={i}><label className="si-label">OPTION {i+1}</label><input className="si" value={o} onChange={e=>setOpt(i,e.target.value)} placeholder={`Choice ${i+1}...`}/></div>)}
+              <button type="button" onClick={addOption} style={{background:"none",border:"1px dashed rgba(59,130,246,.3)",color:"var(--blue)",borderRadius:5,padding:"7px",cursor:"pointer",fontSize:10,fontFamily:"Share Tech Mono"}}>+ ADD OPTION</button>
+              <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}><input type="checkbox" checked={form.multi} onChange={e=>setForm(f=>({...f,multi:e.target.checked}))}/><span className="mono" style={{fontSize:10,color:"var(--dim)"}}>Allow multiple choices</span></label>
+              <button className="neon-btn" onClick={createPoll} style={{borderColor:"var(--blue)",color:"var(--blue)",fontSize:9}}>⟩ CREATE POLL ⟨</button>
+            </div>
+          </div>
+        )}
+        {loading?<div className="mono" style={{color:"var(--dim)",textAlign:"center",padding:"30px 0"}}>LOADING...</div>
+        :polls.length===0?<div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontSize:32,marginBottom:8}}>🗳</div><div className="mono" style={{color:"var(--dim)"}}>No polls yet.</div></div>
+        :polls.map(poll=>{
+          const total=poll.options.reduce((s,o)=>s+o.votes.length,0)||1;
+          const myVotes=poll.options.filter(o=>user&&o.votes.includes(user.username));
+          return(
+            <div key={poll.id} style={{border:`1px solid rgba(59,130,246,${poll.active?.3:.1})`,borderRadius:10,padding:16,marginBottom:14,background:"rgba(0,8,22,.5)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                <div>
+                  <div className="orb" style={{fontSize:11,color:poll.active?"var(--blue)":"var(--dim)",letterSpacing:1}}>{poll.question}</div>
+                  <div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:2}}>{poll.active?"ACTIVE":"CLOSED"} · {new Date(poll.createdAt).toLocaleDateString()} · by {poll.createdBy}</div>
+                </div>
+                {user?.isAdmin&&<div style={{display:"flex",gap:6}}>
+                  {poll.active&&<button onClick={()=>closePoll(poll.id)} style={{fontFamily:"Share Tech Mono",fontSize:8,padding:"3px 8px",borderRadius:3,border:"1px solid rgba(251,191,36,.4)",color:"var(--amber)",background:"none",cursor:"pointer"}}>CLOSE</button>}
+                  <button onClick={()=>delPoll(poll.id)} style={{background:"none",border:"none",color:"rgba(255,68,68,.5)",cursor:"pointer",fontSize:13}}>×</button>
+                </div>}
+              </div>
+              <div style={{display:"grid",gap:8}}>
+                {poll.options.map((opt,i)=>{
+                  const pct=Math.round((opt.votes.length/total)*100);
+                  const voted=user&&opt.votes.includes(user.username);
+                  return(
+                    <div key={i} className={`vote-opt${voted?" voted":""}`} onClick={()=>poll.active&&vote(poll.id,i)}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                        <span className="mono" style={{fontSize:11,color:"var(--text)"}}>{voted?"✓ ":""}{opt.text}</span>
+                        <span className="mono" style={{fontSize:10,color:"var(--cyan)"}}>{opt.votes.length} · {pct}%</span>
+                      </div>
+                      <div style={{height:6,background:"rgba(0,245,255,.08)",borderRadius:3,overflow:"hidden"}}>
+                        <div className="poll-bar" style={{width:`${pct}%`,background:voted?"var(--cyan)":"rgba(0,245,255,.4)"}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {!poll.active&&<div className="mono" style={{fontSize:8,color:"var(--dim)",textAlign:"right",marginTop:8}}>Total votes: {poll.options.reduce((s,o)=>s+o.votes.length,0)}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 4: TRADE BOARD — players post WTS/WTB listings
+// ═══════════════════════════════════════════════════════════════════════════════
+function TradeBoardPanel({onClose,user}){
+  const toast=useToast();
+  const[trades,setTrades]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[form,setForm]=useState({item:"",amount:"",price:"",type:"WTS",desc:""});
+  const[filter,setFilter]=useState("ALL");
+  useEffect(()=>{DB.getTrades().then(t=>{setTrades(t);setLoading(false);});},[]);
+  const post=async()=>{
+    if(!user)return toast("Log in to post trades.","var(--red)","⚠");
+    if(!form.item.trim()||!form.price.trim())return;
+    const t=[{id:Date.now(),...form,seller:user.username,postedAt:new Date().toISOString(),active:true},...trades];
+    setTrades(t);await DB.setTrades(t);
+    setForm({item:"",amount:"",price:"",type:"WTS",desc:""});toast("Trade posted!","var(--green)","💎");
+  };
+  const close=async id=>{const t=trades.map(x=>x.id===id?{...x,active:false}:x);setTrades(t);await DB.setTrades(t);};
+  const del=async id=>{const t=trades.filter(x=>x.id!==id);setTrades(t);await DB.setTrades(t);};
+  const TYPE_COLOR={WTS:"var(--green)",WTB:"var(--amber)",TRADE:"var(--purple)"};
+  const visible=trades.filter(t=>filter==="ALL"||t.type===filter);
+  return(
+    <Panel title="TRADE BOARD" subtitle="PLAYER ECONOMY · BUY · SELL · TRADE" color="var(--green)" onClose={onClose} wide>
+      <div style={{maxHeight:"72vh",overflowY:"auto"}}>
+        {user&&!user.isAdmin&&(
+          <div style={{background:"rgba(57,255,20,.04)",border:"1px solid rgba(57,255,20,.2)",borderRadius:8,padding:14,marginBottom:18}}>
+            <div className="orb" style={{fontSize:7,color:"var(--green)",letterSpacing:2,marginBottom:10}}>+ POST LISTING</div>
+            <div style={{display:"grid",gap:8}}>
+              <div style={{display:"flex",gap:8}}>
+                <div style={{flex:1}}><label className="si-label">ITEM</label><input className="si" value={form.item} onChange={e=>setForm(f=>({...f,item:e.target.value}))} placeholder="e.g. Diamond Sword (Sharpness V)"/></div>
+                <div style={{width:80}}><label className="si-label">AMOUNT</label><input className="si" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="x32"/></div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <div style={{flex:1}}><label className="si-label">PRICE (diamonds/items)</label><input className="si" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} placeholder="e.g. 5 diamonds"/></div>
+                <div style={{width:100}}><label className="si-label">TYPE</label>
+                  <select className="si" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
+                    <option value="WTS">WTS (Selling)</option><option value="WTB">WTB (Buying)</option><option value="TRADE">Trade</option>
+                  </select>
+                </div>
+              </div>
+              <div><label className="si-label">NOTE (optional)</label><input className="si" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="Any extra details..."/></div>
+              <button className="neon-btn" onClick={post} style={{borderColor:"var(--green)",color:"var(--green)",fontSize:9}}>⟩ POST LISTING ⟨</button>
+            </div>
+          </div>
+        )}
+        <div style={{display:"flex",gap:7,marginBottom:14}}>
+          {["ALL","WTS","WTB","TRADE"].map(f=><button key={f} onClick={()=>setFilter(f)} style={{fontFamily:"Orbitron",fontSize:8,letterSpacing:1,padding:"5px 12px",borderRadius:4,cursor:"pointer",background:filter===f?"rgba(57,255,20,.12)":"transparent",border:`1px solid ${filter===f?"var(--green)":"rgba(57,255,20,.2)"}`,color:filter===f?"var(--green)":"var(--dim)",transition:"all .2s"}}>{f}</button>)}
+        </div>
+        {loading?<div className="mono" style={{color:"var(--dim)",textAlign:"center",padding:"30px 0"}}>LOADING...</div>
+        :visible.length===0?<div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontSize:32,marginBottom:8}}>💎</div><div className="mono" style={{color:"var(--dim)"}}>No listings yet. Be the first!</div></div>
+        :<div style={{display:"grid",gap:10}}>
+          {visible.map(t=>(
+            <div key={t.id} className="trade-card" style={{opacity:t.active?1:.5,borderColor:t.active?`rgba(57,255,20,.2)`:undefined}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontFamily:"Orbitron",fontSize:8,padding:"3px 8px",borderRadius:3,background:`${TYPE_COLOR[t.type]}18`,border:`1px solid ${TYPE_COLOR[t.type]}44`,color:TYPE_COLOR[t.type],letterSpacing:2}}>{t.type}</span>
+                  <div>
+                    <div className="orb" style={{fontSize:10,color:"var(--text)"}}>{t.item}{t.amount&&` × ${t.amount}`}</div>
+                    <div className="mono" style={{fontSize:8,color:"var(--dim)"}}>by {t.seller} · {new Date(t.postedAt).toLocaleDateString()}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                  <div className="orb" style={{fontSize:11,color:TYPE_COLOR[t.type]}}>💎 {t.price}</div>
+                  {(user?.username===t.seller||user?.isAdmin)&&(
+                    <div style={{display:"flex",gap:5}}>
+                      {t.active&&<button onClick={()=>close(t.id)} style={{fontFamily:"Share Tech Mono",fontSize:7,padding:"2px 7px",borderRadius:3,border:"1px solid rgba(251,191,36,.4)",color:"var(--amber)",background:"none",cursor:"pointer"}}>SOLD</button>}
+                      <button onClick={()=>del(t.id)} style={{background:"none",border:"none",color:"rgba(255,68,68,.5)",cursor:"pointer",fontSize:12}}>×</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {t.desc&&<div className="mono" style={{fontSize:9,color:"var(--dim)",borderTop:"1px solid rgba(57,255,20,.08)",paddingTop:6,marginTop:4}}>{t.desc}</div>}
+              {!t.active&&<div className="orb" style={{fontSize:7,color:"var(--dim)",letterSpacing:2,marginTop:6}}>COMPLETED</div>}
+            </div>
+          ))}
+        </div>}
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 5: ACHIEVEMENTS — admin creates, players get awarded
+// ═══════════════════════════════════════════════════════════════════════════════
+function AchievementsPanel({onClose,user}){
+  const toast=useToast();
+  const[achs,setAchs]=useState([]);
+  const[users,setUsers]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[form,setForm]=useState({name:"",desc:"",icon:"🏅",rarity:"common"});
+  const RARITY={common:{color:"var(--dim)",label:"COMMON"},rare:{color:"var(--blue)",label:"RARE"},epic:{color:"var(--purple)",label:"EPIC"},legendary:{color:"var(--amber)",label:"LEGENDARY"}};
+  useEffect(()=>{Promise.all([DB.getAchievements(),DB.getUsers()]).then(([a,u])=>{setAchs(a);setUsers(u);setLoading(false);});},[]);
+  const addAch=async()=>{
+    if(!form.name.trim())return;
+    const a=[...achs,{id:Date.now(),...form,awardedTo:[]}];
+    setAchs(a);await DB.setAchievements(a);
+    setForm({name:"",desc:"",icon:"🏅",rarity:"common"});toast("Achievement created!","var(--amber)","🏅");
+  };
+  const award=async(achId,username)=>{
+    const a=achs.map(x=>x.id===achId?{...x,awardedTo:x.awardedTo.includes(username)?x.awardedTo.filter(u=>u!==username):[...x.awardedTo,username]}:x);
+    setAchs(a);await DB.setAchievements(a);
+    await DB.pushNotif({type:"system",title:"ACHIEVEMENT UNLOCKED",body:`${username} earned: ${achs.find(x=>x.id===achId)?.name}`});
+  };
+  const delAch=async id=>{const a=achs.filter(x=>x.id!==id);setAchs(a);await DB.setAchievements(a);};
+  const myAchs=user?achs.filter(a=>a.awardedTo.includes(user.username)):[];
+  return(
+    <Panel title="ACHIEVEMENTS" subtitle="HALL OF GLORY · EARN YOUR LEGEND" color="var(--amber)" onClose={onClose} wide>
+      <div style={{maxHeight:"72vh",overflowY:"auto"}}>
+        {user&&!user.isAdmin&&myAchs.length>0&&(
+          <div style={{background:"rgba(251,191,36,.05)",border:"1px solid rgba(251,191,36,.2)",borderRadius:8,padding:12,marginBottom:16}}>
+            <div className="orb" style={{fontSize:7,color:"var(--amber)",letterSpacing:2,marginBottom:8}}>YOUR ACHIEVEMENTS · {myAchs.length}</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {myAchs.map(a=><div key={a.id} title={a.desc} style={{padding:"4px 10px",background:`${RARITY[a.rarity]?.color||"#555"}18`,border:`1px solid ${RARITY[a.rarity]?.color||"#555"}44`,borderRadius:5,display:"flex",alignItems:"center",gap:5}}>
+                <span>{a.icon}</span><span className="mono" style={{fontSize:9,color:"var(--text)"}}>{a.name}</span>
+              </div>)}
+            </div>
+          </div>
+        )}
+        {user?.isAdmin&&(
+          <div style={{background:"rgba(251,191,36,.04)",border:"1px solid rgba(251,191,36,.2)",borderRadius:8,padding:14,marginBottom:18}}>
+            <div className="orb" style={{fontSize:7,color:"var(--amber)",letterSpacing:2,marginBottom:10}}>+ CREATE ACHIEVEMENT</div>
+            <div style={{display:"grid",gap:8}}>
+              <div style={{display:"flex",gap:8}}>
+                <div style={{flex:1}}><label className="si-label">NAME</label><input className="si" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Dragon Slayer"/></div>
+                <div style={{width:70}}><label className="si-label">ICON</label><input className="si" value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))}/></div>
+              </div>
+              <div><label className="si-label">DESCRIPTION</label><input className="si" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="How to earn this..."/></div>
+              <div><label className="si-label">RARITY</label><select className="si" value={form.rarity} onChange={e=>setForm(f=>({...f,rarity:e.target.value}))}>{Object.entries(RARITY).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></div>
+              <button className="neon-btn" onClick={addAch} style={{borderColor:"var(--amber)",color:"var(--amber)",fontSize:9}}>⟩ CREATE ⟨</button>
+            </div>
+          </div>
+        )}
+        {loading?<div className="mono" style={{color:"var(--dim)",textAlign:"center",padding:"30px 0"}}>LOADING...</div>
+        :achs.length===0?<div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontSize:32,marginBottom:8}}>🏅</div><div className="mono" style={{color:"var(--dim)"}}>No achievements yet. Admin creates them.</div></div>
+        :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+          {achs.map(a=>{
+            const R=RARITY[a.rarity]||RARITY.common;
+            const unlocked=user&&a.awardedTo.includes(user.username);
+            return(
+              <div key={a.id} className={`ach-card ${unlocked?"unlocked":"locked"}`}>
+                {user?.isAdmin&&<button onClick={()=>delAch(a.id)} style={{position:"absolute",top:8,right:8,background:"none",border:"none",color:"rgba(255,68,68,.4)",cursor:"pointer",fontSize:12}}>×</button>}
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                  <span style={{fontSize:32,filter:unlocked?"none":"grayscale(1)"}}>{a.icon}</span>
+                  <div>
+                    <div className="orb" style={{fontSize:10,color:unlocked?R.color:"var(--dim)",letterSpacing:1}}>{a.name}</div>
+                    <div style={{fontSize:7,fontFamily:"Orbitron",padding:"1px 6px",borderRadius:2,display:"inline-block",background:`${R.color}18`,border:`1px solid ${R.color}33`,color:R.color,letterSpacing:2,marginTop:2}}>{R.label}</div>
+                  </div>
+                </div>
+                {a.desc&&<div className="mono" style={{fontSize:9,color:"var(--dim)",lineHeight:1.6,marginBottom:8}}>{a.desc}</div>}
+                <div className="mono" style={{fontSize:8,color:unlocked?"var(--green)":"var(--dim)",marginBottom:user?.isAdmin?8:0}}>{unlocked?"✅ UNLOCKED":"🔒 LOCKED"} · {a.awardedTo.length} player{a.awardedTo.length!==1?"s":""}</div>
+                {user?.isAdmin&&(
+                  <div style={{borderTop:"1px solid rgba(251,191,36,.1)",paddingTop:8}}>
+                    <div className="mono" style={{fontSize:7,color:"var(--dim)",marginBottom:5,letterSpacing:1}}>AWARD TO:</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                      {users.map(u=>(
+                        <button key={u.username} onClick={()=>award(a.id,u.username)}
+                          style={{fontFamily:"Share Tech Mono",fontSize:8,padding:"2px 7px",borderRadius:3,cursor:"pointer",transition:"all .2s",
+                            background:a.awardedTo.includes(u.username)?"rgba(57,255,20,.15)":"rgba(0,245,255,.04)",
+                            border:`1px solid ${a.awardedTo.includes(u.username)?"rgba(57,255,20,.5)":"rgba(0,245,255,.2)"}`,
+                            color:a.awardedTo.includes(u.username)?"var(--green)":"var(--dim)"}}>
+                          {u.username}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>}
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 6: SERVER ANNOUNCEMENTS — pinned banner visible on hub
+// ═══════════════════════════════════════════════════════════════════════════════
+function useAnnouncements(){
+  const[ann,setAnn]=useState([]);
+  useEffect(()=>{DB.getAnnouncements().then(setAnn);},[]);
+  return[ann,setAnn];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FEATURE 7: PLAYER REPUTATION — upvote/endorse other players
+// ═══════════════════════════════════════════════════════════════════════════════
+// Integrated into player cards (inline endorse button)
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  APP ROOT
 // ═══════════════════════════════════════════════════════════════════════════════
-const PM={server:ServerPanel,players:PlayersPanel,leaderboard:LeaderboardPanel,wars:WarsPanel,seasons:SeasonsPanel,rules:RulesPanel,diag:DiagPanel,admin:AdminPanel};
+const PM={server:ServerPanel,players:PlayersPanel,leaderboard:LeaderboardPanel,wars:WarsPanel,seasons:SeasonsPanel,rules:RulesPanel,diag:DiagPanel,admin:AdminPanel,changelog:ChangelogPanel,events:EventsPanel,polls:PollsPanel,trades:TradeBoardPanel,achievements:AchievementsPanel};
 
 function AppInner(){
   const[screen,setScreen]=useState("intro");
