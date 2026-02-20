@@ -1524,80 +1524,82 @@ function PlayerProfileModal({player,status,rep,survey,onClose}){
   const sp=player;
   const st=status;
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.92)",backdropFilter:"blur(8px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
-      <div className="glass" style={{width:"min(94vw,520px)",maxHeight:"88vh",overflowY:"auto",padding:24,position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)"}} onClick={e=>e.stopPropagation()}>
-        <button onClick={onClose} className="close-btn">✕</button>
-        {/* HEADER */}
-        <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:20}}>
-          <div style={{position:"relative",flexShrink:0}}>
-            <MCAvatar username={sp.username} size={72} style={{border:`2px solid ${SC[st.status]||"#555"}66`}}/>
-            <div style={{position:"absolute",bottom:-1,right:-1,width:14,height:14,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010812",boxShadow:`0 0 8px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
-          </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-              <div className="orb" style={{fontSize:15,color:"#fff",letterSpacing:2}}>{sp.username}</div>
-              {sp.isAdmin&&<span style={{fontSize:9,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)"}}>★ ADMIN</span>}
+    <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.92)",backdropFilter:"blur(10px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={onClose}>
+      <div className="glass" style={{width:"min(96vw,640px)",maxHeight:"90vh",display:"flex",flexDirection:"column",position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)",borderColor:"rgba(0,245,255,.22)"}} onClick={e=>e.stopPropagation()}>
+        {/* STICKY HEADER */}
+        <div style={{padding:"22px 24px 18px",borderBottom:"1px solid rgba(0,245,255,.1)",flexShrink:0}}>
+          <button onClick={onClose} className="close-btn">✕</button>
+          <div style={{display:"flex",gap:18,alignItems:"center"}}>
+            <div style={{position:"relative",flexShrink:0}}>
+              <MCAvatar username={sp.username} size={80} style={{border:`2px solid ${SC[st.status]||"#555"}88`,borderRadius:10}}/>
+              <div style={{position:"absolute",bottom:2,right:2,width:14,height:14,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010c1a",boxShadow:`0 0 10px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
             </div>
-            <span className="mono" style={{fontSize:11,color:SC[st.status]||"#555",display:"block",marginBottom:6}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
-            {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:8,padding:"3px 9px",borderRadius:4,background:"rgba(0,245,255,.1)",border:"1px solid rgba(0,245,255,.25)",color:"var(--cyan)",letterSpacing:2}}>{sp.playstyle.toUpperCase()}</span>}
-            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:6}}>
-              <span style={{color:"var(--amber)",fontSize:12}}>⭐</span>
-              <span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{rep} reputation</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
+                <div className="orb" style={{fontSize:17,color:"#fff",letterSpacing:2}}>{sp.username}</div>
+                {sp.isAdmin&&<span style={{fontSize:8,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 8px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)",letterSpacing:1}}>★ ADMIN</span>}
+                {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:8,padding:"2px 8px",borderRadius:4,background:"rgba(0,245,255,.08)",border:"1px solid rgba(0,245,255,.22)",color:"var(--cyan)",letterSpacing:1}}>{sp.playstyle.toUpperCase()}</span>}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                <span className="mono" style={{fontSize:11,color:SC[st.status]||"#555"}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
+                <div style={{display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{color:"var(--amber)",fontSize:13}}>⭐</span>
+                  <span className="mono" style={{fontSize:10,color:"var(--amber)"}}>{rep} rep</span>
+                </div>
+                {sp.joinDate&&<span className="mono" style={{fontSize:9,color:"var(--dim)"}}>Joined {new Date(sp.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>}
+              </div>
             </div>
           </div>
         </div>
-        <div style={{height:1,background:"linear-gradient(to right,var(--cyan),var(--purple),transparent)",marginBottom:18}}/>
-        {/* CURRENT ACTIVITY */}
-        <div style={{marginBottom:16,padding:"10px 14px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8}}>
-          <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:4}}>CURRENTLY</div>
-          <div className="mono" style={{fontSize:12,color:"var(--text)"}}>{st.activity||"Status not set"}</div>
-          {st.updatedAt&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
+
+        {/* SCROLLABLE BODY */}
+        <div style={{overflowY:"auto",padding:"18px 24px",display:"flex",flexDirection:"column",gap:14}}>
+          {/* CURRENT ACTIVITY */}
+          <div style={{padding:"12px 16px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.12)",borderRadius:9}}>
+            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.45)",letterSpacing:2,marginBottom:5}}>CURRENTLY</div>
+            <div className="mono" style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{st.activity||"Status not set"}</div>
+            {st.updatedAt&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:5}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
+          </div>
+
+          {/* BIO */}
+          <div>
+            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>ABOUT</div>
+            {sp.bio
+              ?<div className="mono" style={{fontSize:12,color:"var(--text)",lineHeight:1.85,padding:"12px 16px",background:"rgba(0,245,255,.03)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.3)"}}>{sp.bio}</div>
+              :<div style={{padding:"10px 14px",background:"rgba(0,245,255,.02)",borderRadius:7,border:"1px dashed rgba(0,245,255,.1)"}}><div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.2)",fontStyle:"italic"}}>No bio set yet.</div></div>
+            }
+          </div>
+
+          {/* FAVOURITES */}
+          {(sp.fav1||sp.fav2||sp.fav3)&&(
+            <div>
+              <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>FAVOURITE THINGS</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {[sp.fav1,sp.fav2,sp.fav3].filter(Boolean).map((f,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 13px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.15)",borderRadius:7}}>
+                    <span style={{color:"var(--purple)",fontSize:13,flexShrink:0}}>♦</span>
+                    <span className="mono" style={{fontSize:11,color:"var(--text)"}}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SURVEY DATA */}
+          {survey&&(
+            <div>
+              <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>PLAY PROFILE · FROM SURVEY</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:7}}>
+                {[["Playstyle",survey.responses?.style],["PvP",survey.responses?.pvp],["Daily Time",survey.responses?.hours],["Voice Chat",survey.responses?.voice],["Time Zone",survey.responses?.tz],["Version",survey.responses?.version]].filter(([,v])=>v).map(([k,v])=>(
+                  <div key={k} style={{padding:"8px 11px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.13)",borderRadius:7}}>
+                    <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:3}}>{k.toUpperCase()}</div>
+                    <div className="mono" style={{fontSize:11,color:"var(--text)"}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        {/* BIO */}
-        {sp.bio?(
-          <div style={{marginBottom:16}}>
-            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>ABOUT</div>
-            <div className="mono" style={{fontSize:12,color:"var(--text)",lineHeight:1.8,padding:"10px 14px",background:"rgba(0,245,255,.03)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.3)"}}>"{sp.bio}"</div>
-          </div>
-        ):(
-          <div style={{marginBottom:16,padding:"8px 14px",background:"rgba(0,245,255,.02)",borderRadius:6,border:"1px dashed rgba(0,245,255,.1)"}}>
-            <div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.2)",fontStyle:"italic"}}>No bio set yet.</div>
-          </div>
-        )}
-        {/* FAVOURITES */}
-        {(sp.fav1||sp.fav2||sp.fav3)&&(
-          <div style={{marginBottom:16}}>
-            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>FAVOURITE THINGS</div>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {[sp.fav1,sp.fav2,sp.fav3].filter(Boolean).map((f,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.15)",borderRadius:6}}>
-                  <span style={{color:"var(--purple)",fontSize:14}}>♦</span>
-                  <span className="mono" style={{fontSize:11,color:"var(--text)"}}>{f}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {/* SURVEY DATA */}
-        {survey&&(
-          <div style={{marginBottom:16}}>
-            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>PLAY PROFILE · FROM SURVEY</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-              {[["Playstyle",survey.responses?.style],["PvP",survey.responses?.pvp],["Daily Time",survey.responses?.hours],["Voice Chat",survey.responses?.voice],["Time Zone",survey.responses?.tz],["Version",survey.responses?.version]].filter(([,v])=>v).map(([k,v])=>(
-                <div key={k} style={{padding:"6px 10px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.12)",borderRadius:6}}>
-                  <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
-                  <div className="mono" style={{fontSize:10,color:"var(--text)"}}>{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {/* JOIN DATE */}
-        {sp.joinDate&&(
-          <div className="mono" style={{fontSize:9,color:"var(--dim)",padding:"8px 12px",background:"rgba(0,0,0,.2)",borderRadius:6}}>
-            🗓 Joined NexSci SMP on {new Date(sp.joinDate).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1673,7 +1675,7 @@ function PlayersPanel({onClose,user}){
             <div style={{fontSize:32,marginBottom:10}}>👾</div>
             <div className="mono" style={{fontSize:11,color:"var(--dim)"}}>NO PLAYERS REGISTERED YET.<br/>Sign up to appear here!</div>
           </div>
-          :<div className="player-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14,maxHeight:"68vh",overflowY:"auto"}}>
+          :<div className="player-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14,maxHeight:"68vh",overflowY:"auto",paddingRight:4}}>
             {allPlayers.map(p=>{
               const st=statuses[p.username]||{status:"offline",activity:"Status not set"};
               return(
@@ -1698,12 +1700,8 @@ function PlayersPanel({onClose,user}){
                     <span style={{color:"rgba(0,245,255,.4)"}}>DOING › </span>{st.activity||"Status not set"}
                   </div>
                   {/* BIO */}
-                  {p.bio
-                    ?<div className="mono" style={{fontSize:10,color:"var(--dim)",lineHeight:1.6,marginBottom:6,padding:"6px 8px",background:"rgba(0,245,255,.03)",borderRadius:5,borderLeft:"2px solid rgba(0,245,255,.2)"}}>"{p.bio}"</div>
-                    :!p.isAdmin&&<div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.15)",marginBottom:6,fontStyle:"italic"}}>No bio set yet...</div>
-                  }
+                  {p.bio&&<div className="mono" style={{fontSize:10,color:"var(--dim)",lineHeight:1.6,marginBottom:6,padding:"6px 8px",background:"rgba(0,245,255,.03)",borderRadius:5,borderLeft:"2px solid rgba(0,245,255,.2)"}}>{p.bio}</div>}
                   {/* FAVOURITES */}
-                  {!(p.fav1||p.fav2||p.fav3)&&!p.isAdmin&&<div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.12)",marginBottom:4,fontStyle:"italic"}}>No favourites set...</div>}
                   {(p.fav1||p.fav2||p.fav3)&&(
                     <div style={{marginBottom:6}}>
                       <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.35)",letterSpacing:2,marginBottom:4}}>FAVOURITE THINGS</div>
