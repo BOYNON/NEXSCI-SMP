@@ -1519,7 +1519,112 @@ function ServerPanel({onClose,user}){
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PLAYERS — all registered users shown here
 // ═══════════════════════════════════════════════════════════════════════════════
-function PlayersPanel({onClose}){
+// ─── PLAYER PROFILE MODAL (proper component, no IIFE) ────────────────────────
+function PlayerProfileModal({player,status,rep,survey,onClose}){
+  const sp=player;
+  const st=status;
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.92)",backdropFilter:"blur(8px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div className="glass" style={{width:"min(94vw,520px)",maxHeight:"88vh",overflowY:"auto",padding:24,position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)"}} onClick={e=>e.stopPropagation()}>
+        <button onClick={onClose} className="close-btn">✕</button>
+        {/* HEADER */}
+        <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:20}}>
+          <div style={{position:"relative",flexShrink:0}}>
+            <MCAvatar username={sp.username} size={72} style={{border:`2px solid ${SC[st.status]||"#555"}66`}}/>
+            <div style={{position:"absolute",bottom:-1,right:-1,width:14,height:14,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010812",boxShadow:`0 0 8px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+              <div className="orb" style={{fontSize:15,color:"#fff",letterSpacing:2}}>{sp.username}</div>
+              {sp.isAdmin&&<span style={{fontSize:9,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)"}}>★ ADMIN</span>}
+            </div>
+            <span className="mono" style={{fontSize:11,color:SC[st.status]||"#555",display:"block",marginBottom:6}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
+            {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:8,padding:"3px 9px",borderRadius:4,background:"rgba(0,245,255,.1)",border:"1px solid rgba(0,245,255,.25)",color:"var(--cyan)",letterSpacing:2}}>{sp.playstyle.toUpperCase()}</span>}
+            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:6}}>
+              <span style={{color:"var(--amber)",fontSize:12}}>⭐</span>
+              <span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{rep} reputation</span>
+            </div>
+          </div>
+        </div>
+        <div style={{height:1,background:"linear-gradient(to right,var(--cyan),var(--purple),transparent)",marginBottom:18}}/>
+        {/* CURRENT ACTIVITY */}
+        <div style={{marginBottom:16,padding:"10px 14px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8}}>
+          <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:4}}>CURRENTLY</div>
+          <div className="mono" style={{fontSize:12,color:"var(--text)"}}>{st.activity||"Status not set"}</div>
+          {st.updatedAt&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
+        </div>
+        {/* BIO */}
+        {sp.bio?(
+          <div style={{marginBottom:16}}>
+            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>ABOUT</div>
+            <div className="mono" style={{fontSize:12,color:"var(--text)",lineHeight:1.8,padding:"10px 14px",background:"rgba(0,245,255,.03)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.3)"}}>"{sp.bio}"</div>
+          </div>
+        ):(
+          <div style={{marginBottom:16,padding:"8px 14px",background:"rgba(0,245,255,.02)",borderRadius:6,border:"1px dashed rgba(0,245,255,.1)"}}>
+            <div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.2)",fontStyle:"italic"}}>No bio set yet.</div>
+          </div>
+        )}
+        {/* FAVOURITES */}
+        {(sp.fav1||sp.fav2||sp.fav3)&&(
+          <div style={{marginBottom:16}}>
+            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>FAVOURITE THINGS</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {[sp.fav1,sp.fav2,sp.fav3].filter(Boolean).map((f,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.15)",borderRadius:6}}>
+                  <span style={{color:"var(--purple)",fontSize:14}}>♦</span>
+                  <span className="mono" style={{fontSize:11,color:"var(--text)"}}>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* SURVEY DATA */}
+        {survey&&(
+          <div style={{marginBottom:16}}>
+            <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>PLAY PROFILE · FROM SURVEY</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+              {[["Playstyle",survey.responses?.style],["PvP",survey.responses?.pvp],["Daily Time",survey.responses?.hours],["Voice Chat",survey.responses?.voice],["Time Zone",survey.responses?.tz],["Version",survey.responses?.version]].filter(([,v])=>v).map(([k,v])=>(
+                <div key={k} style={{padding:"6px 10px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.12)",borderRadius:6}}>
+                  <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
+                  <div className="mono" style={{fontSize:10,color:"var(--text)"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* JOIN DATE */}
+        {sp.joinDate&&(
+          <div className="mono" style={{fontSize:9,color:"var(--dim)",padding:"8px 12px",background:"rgba(0,0,0,.2)",borderRadius:6}}>
+            🗓 Joined NexSci SMP on {new Date(sp.joinDate).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── REPUTATION ROW (proper component, no IIFE) ───────────────────────────────
+function ReputationRow({rep,hasEndorsed,canEndorse,onEndorse}){
+  return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:6,borderTop:"1px solid rgba(0,245,255,.06)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:5}}>
+        <span style={{color:"var(--amber)",fontSize:11}}>⭐</span>
+        <span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{rep} rep</span>
+      </div>
+      {canEndorse&&(
+        <button type="button" onClick={async e=>{e.stopPropagation();await onEndorse();}}
+          style={{fontFamily:"Share Tech Mono",fontSize:8,padding:"3px 9px",borderRadius:4,cursor:"pointer",transition:"all .2s",
+            background:hasEndorsed?"rgba(251,191,36,.15)":"rgba(0,245,255,.04)",
+            border:`1px solid ${hasEndorsed?"rgba(251,191,36,.5)":"rgba(0,245,255,.15)"}`,
+            color:hasEndorsed?"var(--amber)":"var(--dim)"}}>
+          {hasEndorsed?"★ ENDORSED":"☆ ENDORSE"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PlayersPanel({onClose,user}){
   const[statuses,setStatuses]=useState({});
   const[users,setUsers]=useState([]);
   const[loading,setLoading]=useState(true);
@@ -1552,98 +1657,15 @@ function PlayersPanel({onClose}){
       </div>
 
       {/* FULL PLAYER PROFILE MODAL */}
-      {selectedPlayer&&(()=>{
-        const sp=selectedPlayer;
-        const st=statuses[sp.username]||{status:"offline",activity:"Status not set"};
-        const survey=surveys.find(s=>s.username===sp.username);
-        return(
-          <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.92)",backdropFilter:"blur(8px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setSelectedPlayer(null)}>
-            <div className="glass" style={{width:"min(94vw,520px)",maxHeight:"88vh",overflowY:"auto",padding:24,position:"relative",animation:"panelIn .32s cubic-bezier(.22,1,.36,1)"}} onClick={e=>e.stopPropagation()}>
-              <button onClick={()=>setSelectedPlayer(null)} className="close-btn">✕</button>
-
-              {/* HEADER */}
-              <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:20}}>
-                <div style={{position:"relative",flexShrink:0}}>
-                  <MCAvatar username={sp.username} size={72} style={{border:`2px solid ${SC[st.status]||"#555"}66`}}/>
-                  <div style={{position:"absolute",bottom:-1,right:-1,width:14,height:14,borderRadius:"50%",background:SC[st.status]||"#555",border:"2px solid #010812",boxShadow:`0 0 8px ${SC[st.status]||"#555"}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                    <div className="orb" style={{fontSize:15,color:"#fff",letterSpacing:2}}>{sp.username}</div>
-                    {sp.isAdmin&&<span style={{fontSize:9,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)"}}>★ ADMIN</span>}
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                    <span className="mono" style={{fontSize:11,color:SC[st.status]||"#555"}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
-                  </div>
-                  {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:8,padding:"3px 9px",borderRadius:4,background:"rgba(0,245,255,.1)",border:"1px solid rgba(0,245,255,.25)",color:"var(--cyan)",letterSpacing:2}}>{sp.playstyle.toUpperCase()}</span>}
-                  <div style={{display:"flex",alignItems:"center",gap:5,marginTop:4}}><span style={{color:"var(--amber)",fontSize:12}}>⭐</span><span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{statuses[sp.username]?.rep||0} reputation</span></div>
-                </div>
-              </div>
-
-              <div style={{height:1,background:"linear-gradient(to right,var(--cyan),var(--purple),transparent)",marginBottom:18}}/>
-
-              {/* CURRENT ACTIVITY */}
-              <div style={{marginBottom:16,padding:"10px 14px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8}}>
-                <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:4}}>CURRENTLY</div>
-                <div className="mono" style={{fontSize:12,color:"var(--text)"}}>{st.activity||"Status not set"}</div>
-                {st.updatedAt&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
-              </div>
-
-              {/* BIO */}
-              {sp.bio&&(
-                <div style={{marginBottom:16}}>
-                  <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:6}}>ABOUT</div>
-                  <div className="mono" style={{fontSize:12,color:"var(--text)",lineHeight:1.8,padding:"10px 14px",background:"rgba(0,245,255,.03)",borderRadius:8,borderLeft:"3px solid rgba(0,245,255,.3)"}}>"{sp.bio}"</div>
-                </div>
-              )}
-
-              {/* FAVOURITE THINGS */}
-              {(sp.fav1||sp.fav2||sp.fav3)&&(
-                <div style={{marginBottom:16}}>
-                  <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>FAVOURITE THINGS</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {[sp.fav1,sp.fav2,sp.fav3].filter(Boolean).map((f,i)=>(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.15)",borderRadius:6}}>
-                        <span style={{color:"var(--purple)",fontSize:14}}>♦</span>
-                        <span className="mono" style={{fontSize:11,color:"var(--text)"}}>{f}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* PLAYSTYLE FROM SURVEY */}
-              {survey&&(
-                <div style={{marginBottom:16}}>
-                  <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:8}}>PLAY PROFILE (from signup survey)</div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-                    {[
-                      ["Playstyle",survey.responses?.style],
-                      ["PvP",survey.responses?.pvp],
-                      ["Daily Time",survey.responses?.hours],
-                      ["Voice Chat",survey.responses?.voice],
-                      ["Time Zone",survey.responses?.tz],
-                      ["Version",survey.responses?.version],
-                    ].filter(([,v])=>v).map(([k,v])=>(
-                      <div key={k} style={{padding:"6px 10px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.12)",borderRadius:6}}>
-                        <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
-                        <div className="mono" style={{fontSize:10,color:"var(--text)"}}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* JOIN DATE */}
-              {sp.joinDate&&(
-                <div className="mono" style={{fontSize:9,color:"var(--dim)",padding:"8px 12px",background:"rgba(0,0,0,.2)",borderRadius:6}}>
-                  🗓 Joined NexSci SMP on {new Date(sp.joinDate).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {selectedPlayer&&(
+        <PlayerProfileModal
+          player={selectedPlayer}
+          status={statuses[selectedPlayer.username]||{status:"offline",activity:"Status not set"}}
+          rep={statuses[selectedPlayer.username]?.rep||0}
+          survey={surveys.find(s=>s.username===selectedPlayer.username)||null}
+          onClose={()=>setSelectedPlayer(null)}
+        />
+      )}
       {loading
         ?<div style={{textAlign:"center",padding:"40px 0"}}><div className="mono" style={{color:"var(--dim)"}}>LOADING...</div></div>
         :allPlayers.length<=1
@@ -1697,36 +1719,23 @@ function PlayersPanel({onClose}){
                   {/* JOIN DATE */}
                   {p.joinDate&&<div className="mono" style={{fontSize:8,color:"var(--dim)",marginTop:4}}>Joined {new Date(p.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>}
                   {/* REPUTATION */}
-                  {(()=>{
-                    const myRep=statuses[p.username]?.rep||0;
-                    const hasEndorsed=user&&(statuses[p.username]?.endorsedBy||[]).includes(user.username);
-                    const canEndorse=user&&user.username!==p.username&&!p.isAdmin;
-                    return(
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:6,borderTop:"1px solid rgba(0,245,255,.06)"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:5}}>
-                          <span style={{color:"var(--amber)",fontSize:11}}>⭐</span>
-                          <span className="mono" style={{fontSize:9,color:"var(--amber)"}}>{myRep} rep</span>
-                        </div>
-                        {canEndorse&&(
-                          <button type="button" onClick={async e=>{e.stopPropagation();
-                            const ps=await DB.getPlayerStatus();
-                            const cur=ps[p.username]||{};
-                            const endorsed=cur.endorsedBy||[];
-                            const already=endorsed.includes(user.username);
-                            const newEndorsed=already?endorsed.filter(x=>x!==user.username):[...endorsed,user.username];
-                            const updated={...ps,[p.username]:{...cur,endorsedBy:newEndorsed,rep:newEndorsed.length}};
-                            await DB.setPlayerStatus(updated);
-                            setStatuses(updated);
-                          }} style={{fontFamily:"Share Tech Mono",fontSize:8,padding:"3px 9px",borderRadius:4,cursor:"pointer",transition:"all .2s",
-                            background:hasEndorsed?"rgba(251,191,36,.15)":"rgba(0,245,255,.04)",
-                            border:`1px solid ${hasEndorsed?"rgba(251,191,36,.5)":"rgba(0,245,255,.15)"}`,
-                            color:hasEndorsed?"var(--amber)":"var(--dim)"}}>
-                            {hasEndorsed?"★ ENDORSED":"☆ ENDORSE"}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  <ReputationRow
+                    username={p.username}
+                    isAdmin={p.isAdmin}
+                    rep={statuses[p.username]?.rep||0}
+                    hasEndorsed={!!(user&&(statuses[p.username]?.endorsedBy||[]).includes(user.username))}
+                    canEndorse={!!(user&&user.username!==p.username&&!p.isAdmin)}
+                    onEndorse={async()=>{
+                      const ps=await DB.getPlayerStatus();
+                      const cur=ps[p.username]||{};
+                      const endorsed=cur.endorsedBy||[];
+                      const already=endorsed.includes(user.username);
+                      const newEndorsed=already?endorsed.filter(x=>x!==user.username):[...endorsed,user.username];
+                      const updated={...ps,[p.username]:{...cur,endorsedBy:newEndorsed,rep:newEndorsed.length}};
+                      await DB.setPlayerStatus(updated);
+                      setStatuses(updated);
+                    }}
+                  />
                   {/* CLICK HINT */}
                   <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.2)",marginTop:4,textAlign:"right"}}>click for full profile ›</div>
                 </div>
