@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
+import { createPortal } from "react-dom";
 import { initializeApp } from "firebase/app";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp
@@ -130,6 +131,18 @@ const DB = {
     }
     // Else it's already a base64/URL string — just store it
     return _fbSet(`pfp_${username}`, fileOrBase64);
+  },
+
+  // ── Banner — URL stored in Firestore, image in Cloudinary ──────────────────
+  async getUserBanner(username) { return _fbGet(`banner_${username}`); },
+  async setUserBanner(username, fileOrUrl) {
+    if (fileOrUrl instanceof File) {
+      try {
+        const url = await CLOUDINARY.upload(fileOrUrl, "nexsci/banner");
+        return _fbSet(`banner_${username}`, url);
+      } catch (e) { console.error("Banner upload failed", e); return false; }
+    }
+    return _fbSet(`banner_${username}`, fileOrUrl);
   },
 
   // ── Music — URL stored in Firestore, audio file in Cloudinary ───────────────
@@ -358,7 +371,415 @@ body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;overf
 .vote-opt{padding:10px 14px;border-radius:7px;border:1px solid rgba(0,245,255,.15);cursor:pointer;transition:all .25s;background:rgba(0,245,255,.03);}
 .vote-opt:hover{border-color:var(--cyan);background:rgba(0,245,255,.08);}
 .vote-opt.voted{border-color:var(--cyan);background:rgba(0,245,255,.12);box-shadow:0 0 12px rgba(0,245,255,.15);}
+/* PROFILE MODAL */
+.profile-banner{width:100%;height:110px;object-fit:cover;display:block;}
+.profile-banner-wrap{position:relative;border-radius:12px 12px 0 0;overflow:hidden;background:linear-gradient(135deg,rgba(0,12,30,1) 0%,rgba(20,0,40,1) 50%,rgba(0,10,25,1) 100%);}
+.copy-btn{background:transparent;border:1px solid rgba(0,245,255,.2);border-radius:4px;color:var(--dim);cursor:pointer;padding:2px 7px;font-size:10px;transition:all .2s;font-family:'Share Tech Mono',monospace;}
+.copy-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+@keyframes profileIn{from{opacity:0;transform:translateX(30px) scale(.97)}to{opacity:1;transform:translateX(0) scale(1)}}
+
+/* ═══════════════════════════════════════════════════════
+   LIGHT THEME — NexSci SMP v5.0
+   ═══════════════════════════════════════════════════════ */
+body.light{
+  --bg:#e8f2fb;--text:#0c1e2e;--dim:#4d7490;
+  --cyan:#0077aa;--cyan-dim:#005f8a;--purple:#7a1dcc;
+  --green:#167700;--red:#bb1111;--amber:#8c5f00;
+  --orange:#ac4000;--blue:#1a4fbb;
+  --glass:rgba(255,255,255,0.80);--glass-b:rgba(0,90,160,0.15);
+}
+body.light{background:linear-gradient(145deg,#d0e8f8 0%,#eaf2fb 40%,#ede8f8 75%,#d8eaf8 100%);background-attachment:fixed;}
+body.light .stars-wrap{opacity:0.05;}
+body.light .scanline{background:linear-gradient(transparent,rgba(0,80,160,.015),transparent);}
+body.light ::-webkit-scrollbar-track{background:rgba(0,70,140,.06);}
+body.light ::-webkit-scrollbar-thumb{background:#7ab0cc;border-radius:2px;}
+body.light .glass{background:rgba(255,255,255,.82)!important;border:1px solid rgba(0,90,160,.18)!important;box-shadow:0 4px 28px rgba(0,50,120,.08)!important;backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important;}
+body.light [style*="rgba(1,8,18,.92)"]{background:rgba(235,247,255,.96)!important;border-bottom:1px solid rgba(0,90,160,.14)!important;box-shadow:0 2px 14px rgba(0,50,120,.08)!important;}
+body.light .mcard{background:rgba(255,255,255,.78)!important;border:1px solid rgba(0,90,160,.14)!important;box-shadow:0 2px 10px rgba(0,50,120,.06)!important;}
+body.light .mcard:hover{border-color:var(--cyan)!important;box-shadow:0 0 18px rgba(0,90,160,.18),0 6px 28px rgba(0,50,120,.1)!important;}
+body.light .pcard{background:rgba(255,255,255,.82)!important;border:1px solid rgba(0,90,160,.13)!important;}
+body.light .pcard:hover{border-color:rgba(0,90,160,.4)!important;box-shadow:0 6px 24px rgba(0,50,120,.1)!important;}
+body.light .si{background:rgba(255,255,255,.94)!important;border:1px solid rgba(0,90,160,.2)!important;color:var(--text)!important;}
+body.light .si:focus{border-color:var(--cyan)!important;box-shadow:0 0 10px rgba(0,90,160,.14)!important;background:#fff!important;}
+body.light .si option{background:#fff!important;color:#0c1e2e!important;}
+body.light .si-label{color:var(--cyan-dim)!important;}
+body.light .neon-btn{border-color:var(--cyan)!important;color:var(--cyan)!important;}
+body.light .neon-btn::before{background:var(--cyan)!important;}
+body.light .neon-btn:hover{color:#fff!important;box-shadow:0 0 22px rgba(0,90,160,.35)!important;}
+body.light .close-btn{background:rgba(160,20,20,.07)!important;border-color:rgba(160,20,20,.25)!important;}
+body.light .topbar-login-btn{border-color:rgba(0,90,160,.26)!important;color:var(--cyan)!important;}
+body.light .topbar-login-btn:hover{border-color:var(--cyan)!important;background:rgba(0,90,160,.09)!important;}
+body.light .topbar-music-btn{border-color:rgba(100,20,180,.28)!important;color:var(--purple)!important;}
+body.light .bell-btn{border-color:rgba(0,90,160,.2)!important;}
+body.light .notif-panel{background:rgba(255,255,255,.98)!important;border-color:rgba(0,90,160,.2)!important;box-shadow:0 8px 32px rgba(0,50,120,.12)!important;}
+body.light .notif-item{border-bottom-color:rgba(0,90,160,.07)!important;}
+body.light .notif-item:hover{background:rgba(0,90,160,.04)!important;}
+body.light .toast{background:rgba(255,255,255,.97)!important;box-shadow:0 4px 20px rgba(0,50,120,.12)!important;}
+body.light .ticker-wrap{background:rgba(235,247,255,.9)!important;border-bottom-color:rgba(0,90,160,.1)!important;}
+body.light .ticker-item{color:rgba(0,70,130,.65)!important;}
+body.light .ticker-dot{background:rgba(0,90,160,.4)!important;}
+body.light .rule-item{background:rgba(0,90,160,.04)!important;border-left-color:var(--cyan)!important;}
+body.light .rule-item:hover{background:rgba(0,90,160,.09)!important;}
+body.light .diag-row{background:rgba(255,255,255,.72)!important;border-color:rgba(0,90,160,.13)!important;}
+body.light .scard{background:rgba(255,255,255,.74)!important;border-color:rgba(100,20,180,.18)!important;}
+body.light .scard:hover{border-color:var(--purple)!important;}
+body.light .lb-row{border-bottom-color:rgba(0,90,160,.07)!important;}
+body.light .lb-row:hover{background:rgba(0,90,160,.04)!important;}
+body.light .war-entry{background:rgba(255,245,245,.75)!important;border-color:rgba(150,20,20,.2)!important;}
+body.light .trade-card{background:rgba(255,255,255,.78)!important;border-color:rgba(15,110,0,.16)!important;}
+body.light .trade-card:hover{border-color:rgba(15,110,0,.4)!important;}
+body.light .ach-card{background:rgba(255,252,238,.84)!important;border-color:rgba(130,85,0,.18)!important;}
+body.light .ach-card.unlocked{border-color:rgba(130,85,0,.45)!important;background:rgba(255,248,215,.92)!important;}
+body.light .ach-card.locked{opacity:.55!important;filter:grayscale(.45)!important;}
+body.light .cl-entry{background:rgba(0,90,160,.03)!important;border-left-color:rgba(0,90,160,.32)!important;}
+body.light .cl-entry:hover{background:rgba(0,90,160,.07)!important;border-left-color:var(--cyan)!important;}
+body.light .countdown-unit{background:rgba(0,90,160,.06)!important;border-color:rgba(0,90,160,.18)!important;}
+body.light .wl-row{border-bottom-color:rgba(0,90,160,.07)!important;}
+body.light .wl-row:hover{background:rgba(0,90,160,.04)!important;}
+body.light .setting-row{border-bottom-color:rgba(0,90,160,.07)!important;}
+body.light .setting-row:hover{background:rgba(0,90,160,.04)!important;}
+body.light .toggle-slider{background:rgba(0,90,160,.1)!important;border-color:rgba(0,90,160,.22)!important;}
+body.light .toggle-slider::before{background:rgba(0,90,160,.38)!important;}
+body.light .toggle input:checked+.toggle-slider{background:rgba(0,90,160,.2)!important;border-color:var(--cyan)!important;}
+body.light .toggle input:checked+.toggle-slider::before{background:var(--cyan)!important;box-shadow:0 0 8px rgba(0,90,160,.38)!important;}
+body.light .music-player{background:rgba(255,255,255,.97)!important;border-color:rgba(100,20,180,.3)!important;}
+body.light .music-btn{border-color:rgba(100,20,180,.28)!important;color:var(--purple)!important;}
+body.light .vote-opt{background:rgba(0,90,160,.04)!important;border-color:rgba(0,90,160,.14)!important;}
+body.light .vote-opt:hover{border-color:var(--cyan)!important;background:rgba(0,90,160,.09)!important;}
+body.light .vote-opt.voted{border-color:var(--cyan)!important;background:rgba(0,90,160,.14)!important;}
+body.light .profile-banner-wrap{background:linear-gradient(135deg,#c8dff0 0%,#ddd0f0 60%,#c8dff0 100%)!important;}
+body.light .copy-btn{border-color:rgba(0,90,160,.22)!important;color:var(--dim)!important;}
+body.light .pfp-upload-zone{border-color:rgba(0,90,160,.22)!important;background:rgba(0,90,160,.03)!important;}
+
+/* TICKER */
+@keyframes tickerMove{from{transform:translateX(100vw)}to{transform:translateX(-100%)}}
+.ticker-wrap{position:fixed;top:44px;left:0;right:0;height:20px;overflow:hidden;z-index:49;background:rgba(0,5,15,.65);border-bottom:1px solid rgba(0,245,255,.07);display:flex;align-items:center;pointer-events:none;}
+.ticker-track{display:flex;white-space:nowrap;animation:tickerMove 50s linear infinite;}
+.ticker-item{padding:0 28px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,245,255,.5);letter-spacing:1.5px;display:flex;align-items:center;gap:8px;}
+.ticker-dot{width:3px;height:3px;border-radius:50%;background:rgba(0,245,255,.4);flex-shrink:0;}
+
+/* BOOT SCREEN */
+@keyframes bootBar{from{width:0}to{width:100%}}
+@keyframes bootCursor{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes bootSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.boot-line{font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,245,255,.75);line-height:2;animation:bootSlideUp .25s ease both;}
+.boot-cursor{display:inline-block;width:7px;height:12px;background:rgba(0,245,255,.7);animation:bootCursor .8s step-end infinite;vertical-align:middle;margin-left:2px;}
+
+/* ANIMATED EMOJI */
+@keyframes emojiFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-5px) scale(1.12)}}
+@keyframes emojiSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes emojiBounce{0%,100%{transform:scaleY(1)}45%{transform:scaleY(1.3)}}
+@keyframes emojiPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+.card-emoji-float{display:inline-block;animation:emojiFloat 2.4s ease-in-out infinite;}
+.card-emoji-spin{display:inline-block;animation:emojiSpin 5s linear infinite;}
+.card-emoji-bounce{display:inline-block;animation:emojiBounce 1s ease-in-out infinite;}
+.card-emoji-pulse{display:inline-block;animation:emojiPulse 2s ease-in-out infinite;}
+
+/* SETTINGS */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid rgba(0,245,255,.06);transition:background .2s;}
+.setting-row:hover{background:rgba(0,245,255,.03);}
+.setting-row:last-child{border-bottom:none;}
+.toggle{position:relative;width:38px;height:20px;cursor:pointer;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-slider{position:absolute;inset:0;border-radius:10px;background:rgba(0,245,255,.12);border:1px solid rgba(0,245,255,.2);transition:all .3s;}
+.toggle-slider::before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(0,245,255,.4);top:2px;left:2px;transition:all .3s;}
+.toggle input:checked+.toggle-slider{background:rgba(0,245,255,.2);border-color:var(--cyan);}
+.toggle input:checked+.toggle-slider::before{transform:translateX(18px);background:var(--cyan);box-shadow:0 0 8px var(--cyan);}
+
+/* EXTRA SMOOTH ANIMATIONS */
+@keyframes fadeInScale{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes slideInBottom{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+.panel-anim{animation:fadeInScale .42s cubic-bezier(.22,1,.36,1) both;}
+
 `;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SETTINGS CONTEXT — user-local, stored in localStorage
+// ═══════════════════════════════════════════════════════════════════════════════
+const SETTINGS_KEY="nexsci_settings";
+const SETTINGS_DEFAULT={
+  theme:"dark",            // "dark"|"light"
+  sounds:true,             // UI click sounds on/off
+  tickerVisible:true,      // notif ticker strip
+  animatedEmoji:true,      // animated card icons
+  reducedMotion:false,     // strip heavy animations
+  compactCards:false,      // smaller player cards
+  clockFormat:"24h",       // "12h"|"24h"
+  accentColor:"cyan",      // "cyan"|"purple"|"green"|"amber"
+};
+const SettingsCtx=createContext({settings:SETTINGS_DEFAULT,setSetting:()=>{}});
+function useSettings(){return useContext(SettingsCtx);}
+function SettingsProvider({children}){
+  const[settings,setSettings]=useState(()=>{
+    try{const s=localStorage.getItem(SETTINGS_KEY);return s?{...SETTINGS_DEFAULT,...JSON.parse(s)}:SETTINGS_DEFAULT;}
+    catch{return SETTINGS_DEFAULT;}
+  });
+  const setSetting=useCallback((k,v)=>{
+    setSettings(prev=>{
+      const next={...prev,[k]:v};
+      try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(next));}catch{}
+      return next;
+    });
+  },[]);
+  // Apply theme to body
+  useEffect(()=>{
+    document.body.classList.toggle("light",settings.theme==="light");
+  },[settings.theme]);
+  return <SettingsCtx.Provider value={{settings,setSetting}}>{children}</SettingsCtx.Provider>;
+}
+
+// ─── SOUND ENGINE ─────────────────────────────────────────────────────────────
+const SFX={
+  click:()=>playTone(880,0.06,0.05,"square"),
+  notif:()=>playTone(660,0.1,0.15,"sine"),
+  open:()=>playTone(440,0.05,0.08,"sine"),
+  close:()=>playTone(330,0.05,0.07,"sine"),
+  success:()=>playChord([523,659,784],0.07,0.2),
+  error:()=>playTone(200,0.08,0.12,"sawtooth"),
+};
+function playTone(freq,vol,dur,type="sine"){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator();const g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.type=type;o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    o.start();o.stop(ctx.currentTime+dur);
+    setTimeout(()=>ctx.close(),dur*1000+100);
+  }catch{}
+}
+function playChord(freqs,vol,dur){freqs.forEach((f,i)=>setTimeout(()=>playTone(f,vol,dur,"sine"),i*60));}
+// Global hook — checks settings before playing
+function useSound(){
+  const{settings}=useSettings();
+  return useCallback((name)=>{if(settings.sounds&&SFX[name])SFX[name]();},[settings.sounds]);
+}
+
+// ─── STARTUP SOUND — fires on user gesture (browser requires it) ───────────────
+function _playStartupSound(){
+  try{
+    const raw=localStorage.getItem("nexsci_settings");
+    const cfg=raw?JSON.parse(raw):{};
+    if(cfg.sounds===false)return;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    const ctx=new AC();
+    const notes=[
+      {f:130,t:0,   d:0.5,v:0.03},{f:196,t:0.08,d:0.5,v:0.04},
+      {f:261,t:0.18,d:0.5,v:0.04},{f:392,t:0.5, d:0.5,v:0.05},
+      {f:523,t:0.6, d:0.55,v:0.06},{f:659,t:0.68,d:0.5,v:0.05},
+      {f:784,t:0.76,d:0.5,v:0.05},{f:1046,t:1.0,d:0.9,v:0.04},
+      {f:1318,t:1.1,d:0.8,v:0.03},
+    ];
+    notes.forEach(({f,t,d,v})=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type="sine";o.frequency.value=f;
+      g.gain.setValueAtTime(0,ctx.currentTime+t);
+      g.gain.linearRampToValueAtTime(v,ctx.currentTime+t+0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+t+d);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+d+0.05);
+    });
+    setTimeout(()=>{try{ctx.close();}catch{}},3000);
+  }catch(e){}
+}
+
+// ─── BOOT SCREEN ──────────────────────────────────────────────────────────────
+const BOOT_LINES=[
+  "[NEXSCI OS v5.0] Initializing neural interface...",
+  "[NETWORK] Connecting to Firestore cluster... OK",
+  "[AUTH] Loading session state...",
+  "[MODULES] server · players · wars · seasons · trades · polls · achievements",
+  "[FIREBASE] Syncing player data... OK",
+  "[AUDIO] Sound engine v2 loaded",
+  "[RENDER] Canvas compositor ready",
+  "[SECURITY] Token validated ✓",
+  "System ready. Welcome to NexSci SMP v5.0.",
+];
+function BootScreen({onDone}){
+  const[lines,setLines]=useState([]);
+  const[progress,setProgress]=useState(0);
+  const[done,setDone]=useState(false);
+  useEffect(()=>{
+    let i=0;
+    const interval=setInterval(()=>{
+      if(i<BOOT_LINES.length){
+        setLines(l=>[...l,BOOT_LINES[i]]);
+        setProgress(Math.round(((i+1)/BOOT_LINES.length)*100));
+        i++;
+      }else{
+        clearInterval(interval);
+        setTimeout(()=>{setDone(true);setTimeout(onDone,500);},400);
+      }
+    },220);
+    return()=>clearInterval(interval);
+  },[onDone]);
+  return(
+    <div style={{
+      position:"fixed",inset:0,zIndex:9999,background:"#000d1a",
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+      opacity:done?0:1,transition:"opacity .5s ease",
+    }}>
+      {/* scan lines overlay */}
+      <div style={{position:"absolute",inset:0,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,245,255,.015) 2px,rgba(0,245,255,.015) 4px)",pointerEvents:"none"}}/>
+      {/* corner brackets — proper camelCase React styles */}
+      {[
+        {top:16,left:16,borderTop:"2px solid",borderLeft:"2px solid"},
+        {top:16,right:16,borderTop:"2px solid",borderRight:"2px solid"},
+        {bottom:16,left:16,borderBottom:"2px solid",borderLeft:"2px solid"},
+        {bottom:16,right:16,borderBottom:"2px solid",borderRight:"2px solid"},
+      ].map((s,i)=>(
+        <div key={i} style={{position:"absolute",width:24,height:24,borderColor:"rgba(0,245,255,.4)",...s}}/>
+      ))}
+      <div style={{width:"min(90vw,560px)"}}>
+        {/* LOGO */}
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontFamily:"Orbitron",fontWeight:900,fontSize:"clamp(22px,4vw,38px)",color:"#fff",letterSpacing:6,marginBottom:6}}>
+            NEXSCI <span style={{color:"#00f5ff",textShadow:"0 0 20px #00f5ff"}}>SMP</span>
+          </div>
+          <div style={{fontFamily:"Share Tech Mono",fontSize:10,color:"rgba(0,245,255,.4)",letterSpacing:4}}>NEURAL COMMAND INTERFACE · v5.0</div>
+        </div>
+        {/* TERMINAL */}
+        <div style={{background:"rgba(0,245,255,.03)",border:"1px solid rgba(0,245,255,.15)",borderRadius:8,padding:"16px 20px",minHeight:200,marginBottom:20}}>
+          <div style={{fontFamily:"Share Tech Mono",fontSize:9,color:"rgba(0,245,255,.35)",letterSpacing:2,marginBottom:10,borderBottom:"1px solid rgba(0,245,255,.08)",paddingBottom:8}}>NEXSCI_OS // BOOT TERMINAL</div>
+          {lines.map((l,i)=>(
+            <div key={i} className="boot-line" style={{animationDelay:`${i*0.02}s`}}>
+              <span style={{color:"rgba(0,245,255,.35)",marginRight:8}}>{">"}</span>{l}
+            </div>
+          ))}
+          {!done&&<div style={{marginTop:4}}><span style={{fontFamily:"Share Tech Mono",fontSize:11,color:"rgba(0,245,255,.6)"}}>{">"}</span><span className="boot-cursor"/></div>}
+        </div>
+        {/* PROGRESS BAR */}
+        <div style={{background:"rgba(0,245,255,.07)",borderRadius:2,height:3,overflow:"hidden"}}>
+          <div style={{height:"100%",background:"linear-gradient(to right,#00f5ff,#b44dff)",width:`${progress}%`,transition:"width .2s ease",boxShadow:"0 0 8px #00f5ff"}}/>
+        </div>
+        <div style={{fontFamily:"Share Tech Mono",fontSize:9,color:"rgba(0,245,255,.35)",textAlign:"right",marginTop:4,letterSpacing:1}}>{progress}%</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── NOTIFICATION TICKER ──────────────────────────────────────────────────────
+function NotifTicker(){
+  const{settings}=useSettings();
+  const[notifs,setNotifs]=useState([]);
+  useEffect(()=>{
+    DB.getNotifs().then(ns=>setNotifs(ns.slice(0,10)));
+    const t=setInterval(()=>DB.getNotifs().then(ns=>setNotifs(ns.slice(0,10))),15000);
+    return()=>clearInterval(t);
+  },[]);
+  if(!settings.tickerVisible||notifs.length===0)return null;
+  const NC={server:"#39ff14",war:"#ff4444",survey:"#3b82f6",admin:"#f97316",system:"#00f5ff",access:"#b44dff",leaderboard:"#fbbf24"};
+  const items=[...notifs,...notifs]; // duplicate for seamless loop
+  return(
+    <div className="ticker-wrap">
+      <div className="ticker-track">
+        {items.map((n,i)=>(
+          <span key={i} className="ticker-item">
+            <span className="ticker-dot" style={{background:NC[n.type]||"rgba(0,245,255,.4)"}}/>
+            <span style={{color:NC[n.type]||"rgba(0,245,255,.5)"}}>{n.title}</span>
+            <span style={{color:"rgba(0,245,255,.35)"}}>—</span>
+            <span>{n.body}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
+function SettingsPanel({onClose}){
+  const{settings,setSetting}=useSettings();
+  const play=useSound();
+  const Toggle=({k})=>(
+    <label className="toggle">
+      <input type="checkbox" checked={!!settings[k]} onChange={e=>{setSetting(k,e.target.checked);play("click");}}/>
+      <span className="toggle-slider"/>
+    </label>
+  );
+  const ACCENT_COLORS={cyan:"#00f5ff",purple:"#b44dff",green:"#39ff14",amber:"#fbbf24"};
+  return(
+    <Panel title="SETTINGS" subtitle="USER PREFERENCES · LOCAL ONLY" color="var(--purple)" onClose={onClose}>
+      <div style={{maxWidth:500}}>
+        {/* APPEARANCE */}
+        <div className="orb" style={{fontSize:8,color:"var(--purple)",letterSpacing:2,marginBottom:10}}>APPEARANCE</div>
+        <div style={{background:"rgba(180,77,255,.04)",border:"1px solid rgba(180,77,255,.12)",borderRadius:8,marginBottom:16,overflow:"hidden"}}>
+          <div className="setting-row">
+            <div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)"}}>Theme</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>Light or dark interface</div>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              {["dark","light"].map(t=>(
+                <button key={t} onClick={()=>{setSetting("theme",t);play("click");}} style={{fontFamily:"Orbitron",fontSize:7,letterSpacing:1,padding:"4px 10px",borderRadius:4,cursor:"pointer",background:settings.theme===t?"rgba(180,77,255,.2)":"transparent",border:`1px solid ${settings.theme===t?"var(--purple)":"rgba(180,77,255,.2)"}`,color:settings.theme===t?"var(--purple)":"var(--dim)",transition:"all .2s"}}>
+                  {t==="dark"?"🌑 DARK":"☀️ LIGHT"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="setting-row">
+            <div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)"}}>Animated Card Icons</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>Emoji animations on hub cards</div>
+            </div>
+            <Toggle k="animatedEmoji"/>
+          </div>
+          <div className="setting-row">
+            <div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)"}}>Reduced Motion</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>Disable heavy animations</div>
+            </div>
+            <Toggle k="reducedMotion"/>
+          </div>
+          <div className="setting-row">
+            <div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)"}}>Compact Player Cards</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>Smaller cards, more visible</div>
+            </div>
+            <Toggle k="compactCards"/>
+          </div>
+        </div>
+        {/* INTERFACE */}
+        <div className="orb" style={{fontSize:8,color:"var(--cyan)",letterSpacing:2,marginBottom:10}}>INTERFACE</div>
+        <div style={{background:"rgba(0,245,255,.03)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8,marginBottom:16,overflow:"hidden"}}>
+          <div className="setting-row">
+            <div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)"}}>Notification Ticker</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>Scrolling bar under topbar</div>
+            </div>
+            <Toggle k="tickerVisible"/>
+          </div>
+          <div className="setting-row">
+            <div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)"}}>Clock Format</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>12-hour or 24-hour clock</div>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              {["24h","12h"].map(f=>(
+                <button key={f} onClick={()=>{setSetting("clockFormat",f);play("click");}} style={{fontFamily:"Orbitron",fontSize:7,letterSpacing:1,padding:"4px 10px",borderRadius:4,cursor:"pointer",background:settings.clockFormat===f?"rgba(0,245,255,.15)":"transparent",border:`1px solid ${settings.clockFormat===f?"var(--cyan)":"rgba(0,245,255,.15)"}`,color:settings.clockFormat===f?"var(--cyan)":"var(--dim)",transition:"all .2s"}}>
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* AUDIO */}
+        <div className="orb" style={{fontSize:8,color:"var(--green)",letterSpacing:2,marginBottom:10}}>AUDIO</div>
+        <div style={{background:"rgba(57,255,20,.03)",border:"1px solid rgba(57,255,20,.1)",borderRadius:8,marginBottom:16,overflow:"hidden"}}>
+          <div className="setting-row">
+            <div>
+              <div className="mono" style={{fontSize:11,color:"var(--text)"}}>UI Sounds</div>
+              <div className="mono" style={{fontSize:9,color:"var(--dim)"}}>Click sounds, notifications, alerts</div>
+            </div>
+            <Toggle k="sounds"/>
+          </div>
+        </div>
+        <div className="mono" style={{fontSize:8,color:"rgba(0,245,255,.25)",textAlign:"center",marginTop:8,letterSpacing:1}}>⚙ Settings are stored locally on your device only</div>
+      </div>
+    </Panel>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CONSTANTS
@@ -511,19 +932,27 @@ function NotifBell(){
   const[unread,setUnread]=useState(0);
   const[ringing,setRinging]=useState(false);
   const prevCount=useRef(0);
+  const play=useSound();
   useEffect(()=>{
     const load=async()=>{
       const ns=await DB.getNotifs();
-      if(ns.length>prevCount.current&&prevCount.current>0){setRinging(true);setTimeout(()=>setRinging(false),700);}
-      prevCount.current=ns.length;setNotifs(ns);setUnread(ns.filter(n=>!n.read).length);
+      const newUnread=ns.filter(n=>!n.read).length;
+      if(ns.length>prevCount.current&&prevCount.current>0){setRinging(true);setTimeout(()=>setRinging(false),700);play("notif");}
+      prevCount.current=ns.length;
+      setNotifs(ns);
+      setUnread(newUnread);
     };
     load();const t=setInterval(load,8000);return()=>clearInterval(t);
   },[]);
-  const markRead=async()=>{const ns=notifs.map(n=>({...n,read:true}));setNotifs(ns);setUnread(0);await DB.set("smp:notifs",ns,true);};
+  const markRead=useCallback(async()=>{
+    const ns=notifs.map(n=>({...n,read:true}));
+    setNotifs(ns);setUnread(0);
+    await _fbSet("notifs",ns);
+  },[notifs]);
   const NC={server:"#39ff14",war:"#ff4444",survey:"#3b82f6",admin:"#f97316",system:"#00f5ff",access:"#b44dff",leaderboard:"#fbbf24"};
   return(
     <div style={{position:"relative"}}>
-      <button className={`bell-btn${ringing?" bell-ringing":""}`} onClick={()=>{setOpen(o=>!o);if(unread>0)markRead();}}>
+      <button className={`bell-btn${ringing?" bell-ringing":""}`} onClick={()=>{const opening=!open;setOpen(opening);play("click");if(opening&&unread>0)markRead();}}>
         🔔{unread>0&&<div className="bell-badge">{unread>9?"9+":unread}</div>}
       </button>
       {open&&(
@@ -746,7 +1175,7 @@ function TopBar({user,serverStatus,onLogout,onSetStatus,onOpenLogin,onOpenAccoun
       <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
         <span className="orb" style={{fontSize:9,color:"var(--cyan)",letterSpacing:3}}>NEXSCI SMP</span>
         <span className="topbar-center" style={{color:"rgba(0,245,255,.2)"}}>│</span>
-        <span className="topbar-center mono" style={{fontSize:9,color:"var(--dim)"}}>NEURAL COMMAND v3.0</span>
+        <span className="topbar-center mono" style={{fontSize:9,color:"var(--dim)"}}>NEURAL COMMAND v5.0</span>
         <span style={{color:"rgba(0,245,255,.2)"}}>│</span>
         <div style={{display:"flex",alignItems:"center",gap:5}}>
           <div style={{position:"relative",width:8,height:8}}>
@@ -883,7 +1312,7 @@ function IntroScreen({onEnter}){
         PLAYER STATUS · WAR LOGS · SEASONS · EVENTS · POLLS · TRADES · ACHIEVEMENTS · MUSIC
       </p>}
       {step>=3&&<div style={{animation:"fadeUp .8s ease both",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
-        <button className="neon-btn" onClick={onEnter} style={{fontSize:11,letterSpacing:4,padding:"14px 48px",animation:"borderGlow 3s ease-in-out infinite"}}>⟩ ENTER SYSTEM ⟨</button>
+        <button className="neon-btn" onClick={()=>{_playStartupSound();onEnter();}} style={{fontSize:11,letterSpacing:4,padding:"14px 48px",animation:"borderGlow 3s ease-in-out infinite"}}>⟩ ENTER SYSTEM ⟨</button>
       </div>}
     </div>
   );
@@ -893,19 +1322,20 @@ function IntroScreen({onEnter}){
 //  COMMAND HUB — no Survey card
 // ═══════════════════════════════════════════════════════════════════════════════
 const MODS=[
-  {id:"server",      icon:"🖥",  label:"SERVER STATUS",    sub:"Live ping + Aternos",    color:"#39ff14"},
-  {id:"players",     icon:"👤",  label:"PLAYER SYSTEMS",   sub:"Live status + profiles", color:"#00f5ff"},
-  {id:"leaderboard", icon:"🏆",  label:"LEADERBOARD",      sub:"Player stats + ranks",   color:"#fbbf24"},
-  {id:"wars",        icon:"⚔️",  label:"WAR LOGS",         sub:"Conflict history",       color:"#ff4444"},
-  {id:"seasons",     icon:"🗓",  label:"SEASON ARCHIVES",  sub:"SMP history",            color:"#b44dff"},
-  {id:"rules",       icon:"📜",  label:"PROTOCOL RULES",   sub:"Server regulations",     color:"#fbbf24"},
-  {id:"diag",        icon:"🧪",  label:"DIAGNOSTICS",      sub:"Troubleshoot issues",    color:"#3b82f6"},
-  {id:"changelog",   icon:"📋",  label:"CHANGELOG",        sub:"Updates & patches",      color:"#00f5ff"},
-  {id:"events",      icon:"🎉",  label:"EVENTS",           sub:"Countdowns & schedule",  color:"#b44dff"},
-  {id:"polls",       icon:"🗳",  label:"COMMUNITY POLLS",  sub:"Vote on server matters", color:"#3b82f6"},
-  {id:"trades",      icon:"💎",  label:"TRADE BOARD",      sub:"Buy · Sell · Trade",     color:"#39ff14"},
-  {id:"achievements",icon:"🏅",  label:"ACHIEVEMENTS",     sub:"Earn your legend",       color:"#fbbf24"},
-  {id:"admin",       icon:"🛠",  label:"ADMIN CONTROLS",   sub:"Restricted access",      color:"#f97316",adminOnly:true},
+  {id:"server",      icon:"🖥",  anim:"pulse",   label:"SERVER STATUS",    sub:"Live ping + Aternos",    color:"#39ff14"},
+  {id:"players",     icon:"👤",  anim:"float",   label:"PLAYER SYSTEMS",   sub:"Live status + profiles", color:"#00f5ff"},
+  {id:"leaderboard", icon:"🏆",  anim:"bounce",  label:"LEADERBOARD",      sub:"Player stats + ranks",   color:"#fbbf24"},
+  {id:"wars",        icon:"⚔️",  anim:"spin",    label:"WAR LOGS",         sub:"Conflict history",       color:"#ff4444"},
+  {id:"seasons",     icon:"🗓",  anim:"float",   label:"SEASON ARCHIVES",  sub:"SMP history",            color:"#b44dff"},
+  {id:"rules",       icon:"📜",  anim:"float",   label:"PROTOCOL RULES",   sub:"Server regulations",     color:"#fbbf24"},
+  {id:"diag",        icon:"🧪",  anim:"bounce",  label:"DIAGNOSTICS",      sub:"Troubleshoot issues",    color:"#3b82f6"},
+  {id:"changelog",   icon:"📋",  anim:"pulse",   label:"CHANGELOG",        sub:"Updates & patches",      color:"#00f5ff"},
+  {id:"events",      icon:"🎉",  anim:"bounce",  label:"EVENTS",           sub:"Countdowns & schedule",  color:"#b44dff"},
+  {id:"polls",       icon:"🗳",  anim:"float",   label:"COMMUNITY POLLS",  sub:"Vote on server matters", color:"#3b82f6"},
+  {id:"trades",      icon:"💎",  anim:"spin",    label:"TRADE BOARD",      sub:"Buy · Sell · Trade",     color:"#39ff14"},
+  {id:"achievements",icon:"🏅",  anim:"pulse",   label:"ACHIEVEMENTS",     sub:"Earn your legend",       color:"#fbbf24"},
+  {id:"settings",    icon:"⚙️",  anim:"spin",    label:"SETTINGS",         sub:"Preferences & theme",    color:"#b44dff"},
+  {id:"admin",       icon:"🛠",  anim:"bounce",  label:"ADMIN CONTROLS",   sub:"Restricted access",      color:"#f97316",adminOnly:true},
 ];
 // ─── ANNOUNCEMENT BANNER (shown on hub) ──────────────────────────────────────
 function HubAnnouncements(){
@@ -934,6 +1364,7 @@ function HubAnnouncements(){
 }
 
 function CommandHub({onOpen,user}){
+  const{settings}=useSettings();
   const mods=MODS.filter(m=>!m.adminOnly||(user&&user.isAdmin));
   return(
     <div style={{position:"fixed",inset:0,zIndex:10,display:"flex",flexDirection:"column",alignItems:"center",padding:"74px 16px 16px",overflowY:"auto"}}>
@@ -941,7 +1372,7 @@ function CommandHub({onOpen,user}){
       <div style={{textAlign:"center",marginBottom:24,animation:"hubIn .8s ease both"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:5}}>
           <div style={{width:32,height:1,background:"linear-gradient(to right,transparent,#00f5ff)"}}/>
-          <span className="mono" style={{fontSize:8,color:"rgba(0,245,255,.5)",letterSpacing:3}}>COMMAND HUB · v4.0</span>
+          <span className="mono" style={{fontSize:8,color:"rgba(0,245,255,.5)",letterSpacing:3}}>COMMAND HUB · v5.0</span>
           <div style={{width:32,height:1,background:"linear-gradient(to left,transparent,#00f5ff)"}}/>
         </div>
         <h2 className="orb" style={{fontSize:"clamp(13px,2.4vw,22px)",color:"#fff",letterSpacing:4,marginBottom:3}}>NEURAL CONTROL MATRIX</h2>
@@ -957,7 +1388,7 @@ function CommandHub({onOpen,user}){
           {mods.map((m,i)=>(
             <div key={m.id} className="mcard" onClick={()=>onOpen(m.id)} style={{animation:`hubIn .6s ${.08+i*.06}s ease both`,animationFillMode:"both"}}>
               <div className="mc-tl"/><div className="mc-bl"/>
-              <div style={{fontSize:24,marginBottom:9}}>{m.icon}</div>
+              <div style={{fontSize:24,marginBottom:9}}><span className={settings.animatedEmoji?`card-emoji-${m.anim}`:""}>{m.icon}</span></div>
               <div className="orb" style={{fontSize:8,color:m.color,letterSpacing:2,marginBottom:4}}>{m.label}</div>
               <div className="mono" style={{fontSize:10,color:"var(--dim)"}}>{m.sub}</div>
               <div style={{marginTop:12,height:1,background:`linear-gradient(to right,${m.color}44,transparent)`}}/>
@@ -1212,6 +1643,10 @@ function AccountPanel({user,onClose,onLogin,onLogout}){
   const[bio,setBio]=useState("");
   const[playstyle,setPlaystyle]=useState("");
   const[favThings,setFavThings]=useState({fav1:"",fav2:"",fav3:""});
+  const[discord,setDiscord]=useState("");
+  const[bannerPreview,setBannerPreview]=useState(null);
+  const[bannerFile,setBannerFile]=useState(null);
+  const bannerRef=useRef(null);
 
   useEffect(()=>{
     if(!user.isAdmin){
@@ -1222,9 +1657,11 @@ function AccountPanel({user,onClose,onLogin,onLogout}){
           setBio(f.bio||"");
           setPlaystyle(f.playstyle||"");
           setFavThings({fav1:f.fav1||"",fav2:f.fav2||"",fav3:f.fav3||""});
+          setDiscord(f.discord||"");
         }
       });
       DB.getUserPfp(user.username).then(p=>{if(p)setPfpPreview(p);});
+      DB.getUserBanner(user.username).then(b=>{if(b)setBannerPreview(b);});
     }
   },[user.username,user.isAdmin]);
 
@@ -1245,13 +1682,19 @@ function AccountPanel({user,onClose,onLogin,onLogout}){
     if(newUsername!==user.username&&users.some(u=>u.username.toLowerCase()===newUsername.toLowerCase()&&u.username!==user.username)){
       setErr("Username already taken.");setSaving(false);return;
     }
-    const updated=users.map(u=>u.username===user.username?{...u,username:newUsername,displayStatus:newStatus,bio:bio.trim(),playstyle,fav1:favThings.fav1.trim(),fav2:favThings.fav2.trim(),fav3:favThings.fav3.trim(),joinDate:u.joinDate||new Date().toISOString()}:u);
+    const updated=users.map(u=>u.username===user.username?{...u,username:newUsername,displayStatus:newStatus,bio:bio.trim(),playstyle,fav1:favThings.fav1.trim(),fav2:favThings.fav2.trim(),fav3:favThings.fav3.trim(),discord:discord.trim().replace(/^@/,""),joinDate:u.joinDate||new Date().toISOString()}:u);
     await DB.setUsers(updated);
     if(pfpFile){
-      toast("Uploading profile picture...","var(--cyan)","\u2b06");
+      toast("Uploading profile picture...","var(--cyan)","⬆");
       const ok=await DB.setUserPfp(user.username,pfpFile);
-      if(!ok)toast("PFP upload failed. Check connection.","var(--red)","\u26a0");
-      else toast("Profile picture saved to cloud!","var(--green)","\U0001f5bc");
+      if(!ok)toast("PFP upload failed.","var(--red)","⚠");
+      else toast("Profile picture saved!","var(--green)","🖼");
+    }
+    if(bannerFile){
+      toast("Uploading banner...","var(--purple)","⬆");
+      const ok=await DB.setUserBanner(user.username,bannerFile);
+      if(!ok)toast("Banner upload failed.","var(--red)","⚠");
+      else toast("Banner saved!","var(--green)","🖼");
     }
     const newSession={...user,username:newUsername};
     await DB.setSession(newSession);onLogin(newSession);
@@ -1307,7 +1750,20 @@ function AccountPanel({user,onClose,onLogin,onLogout}){
           <div><label className="si-label">DISPLAY NAME</label><input className="si" value={newName} onChange={e=>setNewName(e.target.value)} disabled={user.isAdmin}/></div>
           <div><label className="si-label">STATUS MESSAGE</label><input className="si" value={newStatus} onChange={e=>setNewStatus(e.target.value)} placeholder="e.g. Building my megabase..." maxLength={80} disabled={user.isAdmin}/></div>
           {!user.isAdmin&&<>
+            {/* BANNER UPLOAD */}
+            <div>
+              <label className="si-label">PROFILE BANNER</label>
+              <div style={{position:"relative",borderRadius:8,overflow:"hidden",marginBottom:6,cursor:"pointer",height:70,background:bannerPreview?"none":"linear-gradient(135deg,rgba(0,12,30,1) 0%,rgba(0,245,255,.1) 50%,rgba(20,0,40,.8) 100%)",border:"1px dashed rgba(0,245,255,.2)"}} onClick={()=>bannerRef.current?.click()}>
+                {bannerPreview&&<img src={bannerPreview} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="banner"/>}
+                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.3)"}}>
+                  <div className="mono" style={{fontSize:9,color:"var(--cyan)",letterSpacing:1}}>🖼 {bannerPreview?"CHANGE BANNER":"UPLOAD BANNER"}</div>
+                </div>
+                <input ref={bannerRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(!f)return;setBannerFile(f);const r=new FileReader();r.onload=ev=>setBannerPreview(ev.target.result);r.readAsDataURL(f);}}/>
+              </div>
+              {bannerFile&&<div className="mono" style={{fontSize:8,color:"var(--green)"}}>✅ Banner ready — uploads on save</div>}
+            </div>
             <div><label className="si-label">BIO / ABOUT ME</label><textarea className="si" rows={3} style={{resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)} placeholder="Tell your SMP crew a bit about yourself..." maxLength={200}/><div className="mono" style={{fontSize:8,color:"var(--dim)",textAlign:"right",marginTop:2}}>{bio.length}/200</div></div>
+            <div><label className="si-label">DISCORD TAG (optional)</label><input className="si" value={discord} onChange={e=>setDiscord(e.target.value)} placeholder="e.g. yourname or yourname#1234" maxLength={40}/></div>
             <div>
               <label className="si-label">PLAYSTYLE</label>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -1572,83 +2028,129 @@ function ServerPanel({onClose,user}){
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PLAYERS — all registered users shown here
 // ═══════════════════════════════════════════════════════════════════════════════
-// ─── PLAYER PROFILE MODAL (proper component, no IIFE) ────────────────────────
-function PlayerProfileModal({player,status,rep,survey,onClose}){
-  const sp=player;
-  const st=status;
-  const favs=[sp.fav1,sp.fav2,sp.fav3].filter(Boolean);
-  const surveyFields=survey?[["Playstyle",survey.responses?.style],["PvP",survey.responses?.pvp],["Daily Time",survey.responses?.hours],["Voice Chat",survey.responses?.voice],["Time Zone",survey.responses?.tz],["Version",survey.responses?.version]].filter(([,v])=>v):[];
-  const initX=Math.max(0,(window.innerWidth-720)/2);
-  const initY=Math.max(0,(window.innerHeight-480)/2);
-  const{pos,dragging,startDrag}=useDraggable({x:initX,y:initY});
+// ─── PLAYER PROFILE MODAL (draggable, banner, opens right, resets on close) ──
+function PlayerProfileModal({player,status,rep,survey,achs,onClose}){
+  const sp={username:"",bio:"",playstyle:"",fav1:"",fav2:"",fav3:"",discord:"",joinDate:null,isAdmin:false,role:"Player",...(player||{})};
+  const st={status:"offline",activity:"Status not set",updatedAt:null,...(status||{})};
+  const safeAchs=Array.isArray(achs)?achs:[];
+  const favs=[sp.fav1,sp.fav2,sp.fav3].filter(f=>typeof f==="string"&&f.trim().length>0);
+  const surveyFields=(survey!=null&&survey.responses!=null)?[["Playstyle",survey.responses.style],["PvP",survey.responses.pvp],["Daily Time",survey.responses.hours],["Voice Chat",survey.responses.voice],["Time Zone",survey.responses.tz],["Version",survey.responses.version]].filter(([,v])=>v!=null&&String(v).trim().length>0):[];
   const color=SC[st.status]||"#555";
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,5,15,.8)",backdropFilter:"blur(8px)",zIndex:200,animation:"backdropIn .25s ease"}} onClick={onClose}>
+  const initX=Math.max(0,(window.innerWidth-590)/2);
+  const initY=Math.max(60,(window.innerHeight-570)/2);
+  const{pos,dragging,startDrag}=useDraggable({x:initX,y:initY});
+  const[banner,setBanner]=useState(null);
+  const[copied,setCopied]=useState(false);
+  useEffect(()=>{DB.getUserBanner(sp.username).then(b=>{if(b)setBanner(b);});},[sp.username]);
+  const relTime=iso=>{
+    if(!iso)return null;
+    const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);
+    if(m<1)return"just now";if(m<60)return`${m}m ago`;
+    const h=Math.floor(m/60);if(h<24)return`${h}h ago`;
+    return`${Math.floor(h/24)}d ago`;
+  };
+  const memberSince=iso=>{
+    if(!iso)return null;
+    const days=Math.floor((Date.now()-new Date(iso).getTime())/86400000);
+    if(days<1)return"Today";if(days<30)return`${days}d`;
+    if(days<365)return`${Math.floor(days/30)}mo`;
+    return`${Math.floor(days/365)}y`;
+  };
+  const copyUsername=()=>{navigator.clipboard?.writeText(sp.username).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1800);});};
+  const playerAchs=safeAchs.filter(a=>Array.isArray(a.awardedTo)&&a.awardedTo.includes(sp.username));
+  return createPortal(
+    <div style={{position:"fixed",inset:0,zIndex:9000,pointerEvents:"none"}}>
       <div className="glass" style={{
-        width:"min(96vw,720px)",position:"absolute",left:pos.x,top:pos.y,
-        animation:"panelIn .32s cubic-bezier(.22,1,.36,1)",
+        width:"min(96vw,590px)",position:"absolute",left:pos.x,top:pos.y,
+        animation:"profileIn .34s cubic-bezier(.22,1,.36,1)",
         border:`1px solid ${color}33`,
-        boxShadow:`0 0 0 1px ${color}11, 0 28px 90px rgba(0,0,0,.8), 0 0 60px ${color}06`,
+        boxShadow:`0 0 0 1px ${color}11, 0 32px 100px rgba(0,0,0,.85), 0 0 80px ${color}08`,
         userSelect:dragging?"none":"auto",
-        padding:0,
+        padding:0,overflow:"hidden",pointerEvents:"auto",
       }} onClick={e=>e.stopPropagation()}>
-
-        {/* DRAG HEADER */}
-        <div onMouseDown={startDrag} style={{
-          padding:"16px 20px 14px",
-          borderBottom:`1px solid ${color}22`,
-          cursor:dragging?"grabbing":"grab",
-          background:"linear-gradient(135deg,rgba(0,8,20,.95) 0%,rgba(0,12,28,.85) 100%)",
-          borderRadius:"12px 12px 0 0",
-          display:"flex",gap:16,alignItems:"center",
-        }}>
-          <div style={{position:"relative",flexShrink:0}}>
-            <MCAvatar username={sp.username} size={62} style={{border:`2px solid ${color}66`,borderRadius:10}}/>
-            <div style={{position:"absolute",bottom:1,right:1,width:12,height:12,borderRadius:"50%",background:color,border:"2px solid #010c1a",boxShadow:`0 0 8px ${color}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
+        {/* BANNER — drag handle */}
+        <div className="profile-banner-wrap" onMouseDown={startDrag} style={{cursor:dragging?"grabbing":"grab"}}>
+          {banner
+            ?<img src={banner} className="profile-banner" alt="banner" onError={()=>setBanner(null)}/>
+            :<div className="profile-banner" style={{background:`linear-gradient(135deg,rgba(0,8,22,1) 0%,${color}18 40%,rgba(20,0,40,.9) 70%,rgba(0,10,25,1) 100%)`,position:"relative",overflow:"hidden"}}>
+              <div style={{position:"absolute",inset:0,backgroundImage:`linear-gradient(${color}09 1px,transparent 1px),linear-gradient(90deg,${color}09 1px,transparent 1px)`,backgroundSize:"22px 22px"}}/>
+              <div style={{position:"absolute",bottom:8,right:14,fontFamily:"Orbitron",fontSize:7,color:`${color}44`,letterSpacing:3}}>NEXSCI SMP</div>
+            </div>
+          }
+          <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",display:"flex",gap:3,opacity:.3,pointerEvents:"none"}}>
+            {[0,1,2,3,4].map(i=><div key={i} style={{width:3,height:3,borderRadius:"50%",background:"#fff"}}/>)}
           </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",marginBottom:4}}>
+          <button onClick={onClose} className="close-btn" style={{position:"absolute",top:8,right:8,zIndex:10}}>✕</button>
+        </div>
+        {/* LARGE PFP overlapping banner */}
+        <div style={{position:"relative",marginTop:-52,paddingLeft:18}}>
+          <div style={{position:"relative",display:"inline-block"}}>
+            <div style={{width:104,height:104,borderRadius:13,border:`3px solid ${color}`,boxShadow:`0 0 22px ${color}55,0 0 0 3px #010812`,overflow:"hidden",background:"#010812"}}>
+              <MCAvatar username={sp.username} size={104} style={{width:104,height:104,borderRadius:10}}/>
+            </div>
+            <div style={{position:"absolute",bottom:5,right:5,width:16,height:16,borderRadius:"50%",background:color,border:"3px solid #010812",boxShadow:`0 0 12px ${color}`,animation:st.status!=="offline"?"pulseDot 2s ease-in-out infinite":"none"}}/>
+          </div>
+        </div>
+        {/* IDENTITY */}
+        <div style={{padding:"5px 18px 0",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}>
+          <div style={{minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:3}}>
               <div className="orb" style={{fontSize:15,color:"#fff",letterSpacing:2}}>{sp.username}</div>
               {sp.isAdmin&&<span style={{fontSize:7,color:"var(--orange)",fontFamily:"Orbitron",padding:"2px 7px",border:"1px solid rgba(249,115,22,.4)",borderRadius:3,background:"rgba(249,115,22,.08)",letterSpacing:1}}>★ ADMIN</span>}
-              {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:7,padding:"2px 7px",borderRadius:4,background:"rgba(0,245,255,.08)",border:"1px solid rgba(0,245,255,.22)",color:"var(--cyan)",letterSpacing:1}}>{sp.playstyle.toUpperCase()}</span>}
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <span className="mono" style={{fontSize:10,color}}>{STATUS_EMOJI[st.status]||"⚫"} {SL[st.status]||"OFFLINE"}</span>
-              <span className="mono" style={{fontSize:10,color:"var(--amber)"}}>⭐ {rep} rep</span>
-              {sp.joinDate&&<span className="mono" style={{fontSize:9,color:"var(--dim)"}}>🗓 {new Date(sp.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>}
+              {sp.playstyle&&<span style={{fontFamily:"Orbitron",fontSize:7,padding:"2px 6px",borderRadius:3,background:"rgba(0,245,255,.08)",border:"1px solid rgba(0,245,255,.2)",color:"var(--cyan)",letterSpacing:1}}>{sp.playstyle.toUpperCase()}</span>}
+              {sp.discord&&<span className="mono" style={{fontSize:9,color:"rgba(114,137,218,.8)"}}># {sp.discord}</span>}
             </div>
           </div>
-          <div style={{display:"flex",gap:3,opacity:.2,flexShrink:0}}>
-            {[0,1,2].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:"var(--cyan)"}}/>)}
-          </div>
-          <button onClick={onClose} className="close-btn" style={{position:"static",flexShrink:0}}>✕</button>
+          <button className="copy-btn" onClick={copyUsername} style={{marginTop:4,flexShrink:0,color:copied?"var(--green)":"",borderColor:copied?"rgba(57,255,20,.4)":""}}>{copied?"✓ COPIED":"⎘ COPY"}</button>
         </div>
-
+        {/* STATS PILLS */}
+        <div style={{padding:"8px 18px 0",display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[
+            {l:"REP",v:`⭐ ${rep}`,c:"var(--amber)"},
+            {l:"ACHIEVEMENTS",v:`🏅 ${playerAchs.length}`,c:"var(--purple)"},
+            ...(sp.joinDate?[{l:"MEMBER",v:`🗓 ${memberSince(sp.joinDate)}`,c:"var(--cyan)"}]:[]),
+            ...(st.updatedAt&&st.status!=="offline"?[{l:"LAST SEEN",v:relTime(st.updatedAt),c:color}]:[]),
+          ].map((s,i)=>(
+            <div key={i} style={{padding:"4px 9px",background:"rgba(0,245,255,.03)",border:"1px solid rgba(0,245,255,.07)",borderRadius:5}}>
+              <div className="mono" style={{fontSize:6,color:"var(--dim)",letterSpacing:1,marginBottom:1}}>{s.l}</div>
+              <div className="mono" style={{fontSize:10,color:s.c}}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{margin:"10px 18px 0",height:1,background:`linear-gradient(to right,${color}44,rgba(180,77,255,.25),transparent)`}}/>
         {/* BODY */}
-        <div style={{padding:"16px 20px 20px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          {/* LEFT */}
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:8}}>
-              <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.45)",letterSpacing:2,marginBottom:4}}>CURRENTLY</div>
-              <div className="mono" style={{fontSize:11,color:"var(--text)",lineHeight:1.5}}>{st.activity||"Status not set"}</div>
-              {st.updatedAt&&<div className="mono" style={{fontSize:7,color:"var(--dim)",marginTop:4}}>Updated {new Date(st.updatedAt).toLocaleString()}</div>}
+        <div style={{padding:"10px 18px 18px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{padding:"8px 11px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.09)",borderRadius:7}}>
+              <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.45)",letterSpacing:2,marginBottom:3}}>CURRENTLY</div>
+              <div className="mono" style={{fontSize:10,color:"var(--text)",lineHeight:1.5}}>{st.activity||"Status not set"}</div>
             </div>
-            <div style={{padding:"10px 13px",background:"rgba(0,245,255,.02)",border:"1px solid rgba(0,245,255,.08)",borderRadius:8,borderLeft:`3px solid rgba(0,245,255,.2)`,flex:1}}>
-              <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:5}}>ABOUT</div>
-              <div className="mono" style={{fontSize:11,color:sp.bio?"var(--text)":"rgba(0,245,255,.18)",lineHeight:1.7,fontStyle:sp.bio?"normal":"italic"}}>{sp.bio||"No bio set yet."}</div>
+            <div style={{padding:"8px 11px",background:"rgba(0,245,255,.02)",border:"1px solid rgba(0,245,255,.07)",borderRadius:7,borderLeft:`3px solid rgba(0,245,255,.17)`,flex:1}}>
+              <div className="mono" style={{fontSize:7,color:"rgba(0,245,255,.4)",letterSpacing:2,marginBottom:4}}>ABOUT</div>
+              <div className="mono" style={{fontSize:10,color:sp.bio?"var(--text)":"rgba(0,245,255,.18)",lineHeight:1.7,fontStyle:sp.bio?"normal":"italic"}}>{sp.bio||"No bio set yet."}</div>
             </div>
+            {playerAchs.length>0&&(
+              <div style={{padding:"6px 9px",background:"rgba(251,191,36,.03)",border:"1px solid rgba(251,191,36,.1)",borderRadius:6}}>
+                <div className="mono" style={{fontSize:7,color:"rgba(251,191,36,.5)",letterSpacing:2,marginBottom:4}}>ACHIEVEMENTS</div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {playerAchs.slice(0,8).map(a=><span key={a.id} title={a.name} style={{fontSize:15,cursor:"default"}}>{a.icon}</span>)}
+                  {playerAchs.length>8&&<span className="mono" style={{fontSize:9,color:"var(--amber)",alignSelf:"center"}}>+{playerAchs.length-8}</span>}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* RIGHT */}
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {favs.length>0&&(
               <div>
-                <div className="mono" style={{fontSize:7,color:"rgba(180,77,255,.5)",letterSpacing:2,marginBottom:6}}>FAVOURITE THINGS</div>
-                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                <div className="mono" style={{fontSize:7,color:"rgba(180,77,255,.5)",letterSpacing:2,marginBottom:4}}>FAVOURITE THINGS</div>
+                <div style={{display:"flex",flexDirection:"column",gap:4}}>
                   {favs.map((f,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 11px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.12)",borderRadius:6}}>
-                      <span style={{color:"var(--purple)",fontSize:10,flexShrink:0}}>♦</span>
-                      <span className="mono" style={{fontSize:10,color:"var(--text)"}}>{f}</span>
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 9px",background:"rgba(180,77,255,.05)",border:"1px solid rgba(180,77,255,.1)",borderRadius:5}}>
+                      <span style={{color:"var(--purple)",fontSize:9,flexShrink:0}}>♦</span>
+                      <span className="mono" style={{fontSize:9,color:"var(--text)"}}>{f}</span>
                     </div>
                   ))}
                 </div>
@@ -1656,11 +2158,11 @@ function PlayerProfileModal({player,status,rep,survey,onClose}){
             )}
             {surveyFields.length>0&&(
               <div>
-                <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:2,marginBottom:6}}>PLAY PROFILE</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+                <div className="mono" style={{fontSize:7,color:"rgba(59,130,246,.5)",letterSpacing:2,marginBottom:4}}>PLAY PROFILE</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
                   {surveyFields.map(([k,v])=>(
-                    <div key={k} style={{padding:"6px 9px",background:"rgba(59,130,246,.05)",border:"1px solid rgba(59,130,246,.12)",borderRadius:6}}>
-                      <div className="mono" style={{fontSize:6,color:"rgba(59,130,246,.45)",letterSpacing:1,marginBottom:2}}>{k.toUpperCase()}</div>
+                    <div key={k} style={{padding:"5px 8px",background:"rgba(59,130,246,.04)",border:"1px solid rgba(59,130,246,.1)",borderRadius:5}}>
+                      <div className="mono" style={{fontSize:6,color:"rgba(59,130,246,.45)",letterSpacing:1,marginBottom:1}}>{k.toUpperCase()}</div>
                       <div className="mono" style={{fontSize:9,color:"var(--text)"}}>{v}</div>
                     </div>
                   ))}
@@ -1668,14 +2170,16 @@ function PlayerProfileModal({player,status,rep,survey,onClose}){
               </div>
             )}
             {favs.length===0&&surveyFields.length===0&&(
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",flex:1}}>
-                <div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.15)",textAlign:"center",fontStyle:"italic"}}>No extra profile data yet.</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",flex:1,minHeight:50}}>
+                <div className="mono" style={{fontSize:9,color:"rgba(0,245,255,.12)",textAlign:"center",fontStyle:"italic"}}>No extra data yet.</div>
               </div>
             )}
+            {sp.joinDate&&<div className="mono" style={{fontSize:7,color:"var(--dim)",marginTop:"auto"}}>🗓 Joined {new Date(sp.joinDate).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>}
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1706,8 +2210,9 @@ function PlayersPanel({onClose,user}){
   const[loading,setLoading]=useState(true);
   const[selectedPlayer,setSelectedPlayer]=useState(null);
   const[surveys,setSurveys]=useState([]);
+  const[achs,setAchs]=useState([]);
 
-  useEffect(()=>{DB.getSurveys().then(setSurveys);},[]);
+  useEffect(()=>{DB.getSurveys().then(setSurveys);DB.getAchievements().then(setAchs);},[]);
 
   useEffect(()=>{
     const load=async()=>{
@@ -1718,10 +2223,10 @@ function PlayersPanel({onClose,user}){
     return()=>clearInterval(t);
   },[]);
 
-  // Include admin as a player too — keep full user object for bio/playstyle/fav
+  const _pd={bio:"",playstyle:"",fav1:"",fav2:"",fav3:"",discord:"",joinDate:null};
   const allPlayers=[
-    {username:"AdminOP",role:"Admin",isAdmin:true,bio:"",playstyle:"",fav1:"",fav2:"",fav3:"",joinDate:null},
-    ...users.map(u=>({...u,role:u.role||"Player",isAdmin:false}))
+    {..._pd,username:"AdminOP",role:"Admin",isAdmin:true},
+    ...users.map(u=>({..._pd,...u,role:u.role||"Player",isAdmin:false}))
   ];
 
   const onlineCount=allPlayers.filter(p=>{const s=statuses[p.username];return s?.status==="online"||s?.status==="busy";}).length;
@@ -1729,16 +2234,18 @@ function PlayersPanel({onClose,user}){
   return(
     <Panel title="PLAYER SYSTEMS" subtitle={`LIVE STATUS · ${onlineCount} ACTIVE · ${allPlayers.length} TOTAL`} color="var(--cyan)" onClose={onClose} wide>
       <div style={{marginBottom:12,padding:"8px 12px",background:"rgba(0,245,255,.04)",border:"1px solid rgba(0,245,255,.1)",borderRadius:6}}>
-        <div className="mono" style={{fontSize:10,color:"var(--dim)",lineHeight:1.6}}>💡 All registered players appear here. Set your status via <span style={{color:"var(--cyan)"}}>📊 STATUS</span> in the top bar. Click any card to see full profile. Auto-refreshes every 6s.</div>
+        <div className="mono" style={{fontSize:10,color:"var(--dim)",lineHeight:1.6}}>💡 Click any card to see full profile. Set your status via <span style={{color:"var(--cyan)"}}>📊 STATUS</span> in the top bar. Auto-refreshes every 6s.</div>
       </div>
 
-      {/* FULL PLAYER PROFILE MODAL */}
+      {/* PLAYER PROFILE MODAL — key resets drag position on each new player */}
       {selectedPlayer&&(
         <PlayerProfileModal
+          key={selectedPlayer.username}
           player={selectedPlayer}
           status={statuses[selectedPlayer.username]||{status:"offline",activity:"Status not set"}}
           rep={statuses[selectedPlayer.username]?.rep||0}
           survey={surveys.find(s=>s.username===selectedPlayer.username)||null}
+          achs={achs}
           onClose={()=>setSelectedPlayer(null)}
         />
       )}
@@ -3013,9 +3520,10 @@ function useAnnouncements(){
 // ═══════════════════════════════════════════════════════════════════════════════
 //  APP ROOT
 // ═══════════════════════════════════════════════════════════════════════════════
-const PM={server:ServerPanel,players:PlayersPanel,leaderboard:LeaderboardPanel,wars:WarsPanel,seasons:SeasonsPanel,rules:RulesPanel,diag:DiagPanel,admin:AdminPanel,changelog:ChangelogPanel,events:EventsPanel,polls:PollsPanel,trades:TradeBoardPanel,achievements:AchievementsPanel};
+const PM={server:ServerPanel,players:PlayersPanel,leaderboard:LeaderboardPanel,wars:WarsPanel,seasons:SeasonsPanel,rules:RulesPanel,diag:DiagPanel,admin:AdminPanel,changelog:ChangelogPanel,events:EventsPanel,polls:PollsPanel,trades:TradeBoardPanel,achievements:AchievementsPanel,settings:SettingsPanel};
 
 function AppInner(){
+  const[booting,setBooting]=useState(true);
   const[screen,setScreen]=useState("intro");
   const[openPanel,setOpenPanel]=useState(null);
   const[statusPanel,setStatusPanel]=useState(false);
@@ -3027,6 +3535,8 @@ function AppInner(){
   const[ready,setReady]=useState(false);
   const prevSrvStatus=useRef(null);
   const toast=useToast();
+  const play=useSound();
+  const{settings}=useSettings();
 
   useEffect(()=>{
     const init=async()=>{
@@ -3041,35 +3551,50 @@ function AppInner(){
       const s=await DB.getServer();
       if(s.status!==prevSrvStatus.current){
         prevSrvStatus.current=s.status;setServerStatus(s.status);
-        if(s.status==="online"){fireBrowserNotif("🟢 NexSci SMP Online!","Server is now online!");toast("Server is now ONLINE! Go play!","var(--green)","🟢");}
-        else toast("Server went OFFLINE.","var(--red)","🔴");
+        if(s.status==="online"){fireBrowserNotif("🟢 NexSci SMP Online!","Server is now online!");toast("Server is now ONLINE! Go play!","var(--green)","🟢");play("success");}
+        else{toast("Server went OFFLINE.","var(--red)","🔴");play("error");}
       }else setServerStatus(s.status);
     },7000);
     return()=>clearInterval(t);
   },[]);
 
-  const handleLogin=u=>{setUser(u);setLoginPanel(false);};
-  const handleLogout=async()=>{await DB.setSession(null);setUser(null);toast("Logged out.","var(--dim)","👋");};
-  const openPanelFn=id=>{if(id==="admin"&&!user?.isAdmin)return;setOpenPanel(id);};
+  const handleLogin=u=>{setUser(u);setLoginPanel(false);play("success");};
+  const handleLogout=async()=>{await DB.setSession(null);setUser(null);toast("Logged out.","var(--dim)","👋");play("close");};
+  const openPanelFn=id=>{
+    if(id==="admin"&&!user?.isAdmin)return;
+    play("open");setOpenPanel(id);
+  };
+  const closePanel=()=>{play("close");setOpenPanel(null);};
   const ActivePanel=openPanel?PM[openPanel]:null;
+
+  // Topbar top offset: 44px topbar + 20px ticker if visible = 64px, else 44px
+  const topOffset=settings.tickerVisible?"64px":"44px";
 
   return(
     <>
       <style>{STYLE}</style>
-      <div className="scanline"/>
-      <Starfield/>
-      <TopBar user={user} serverStatus={serverStatus} onLogout={handleLogout} onSetStatus={()=>user&&setStatusPanel(true)} onOpenLogin={()=>setLoginPanel(true)} onOpenAccount={()=>user&&setAccountPanel(true)} musicOpen={musicOpen} setMusicOpen={setMusicOpen}/>
-      {musicOpen&&<MusicPlayer onClose={()=>setMusicOpen(false)}/>}
-      {screen==="intro"&&ready&&<IntroScreen onEnter={()=>setScreen("hub")}/>}
-      {screen==="hub"&&<CommandHub onOpen={openPanelFn} user={user}/>}
-      {ActivePanel&&<ActivePanel onClose={()=>setOpenPanel(null)} user={user} currentUser={user} onLogin={handleLogin}/>}
-      {statusPanel&&user&&<MyStatusPanel user={user} onClose={()=>setStatusPanel(false)}/>}
-      {loginPanel&&!user&&<LoginPanel onClose={()=>setLoginPanel(false)} onLogin={handleLogin}/>}
-      {accountPanel&&user&&<AccountPanel user={user} onClose={()=>setAccountPanel(false)} onLogin={setUser} onLogout={handleLogout}/>}
+      {booting&&<BootScreen onDone={()=>setBooting(false)}/>}
+      {!booting&&(
+        <>
+          <div className="scanline" style={settings.reducedMotion?{display:"none"}:{}}/>
+          <Starfield/>
+          <TopBar user={user} serverStatus={serverStatus} onLogout={handleLogout} onSetStatus={()=>{user&&setStatusPanel(true);play("click");}} onOpenLogin={()=>{setLoginPanel(true);play("click");}} onOpenAccount={()=>{user&&setAccountPanel(true);play("click");}} musicOpen={musicOpen} setMusicOpen={v=>{setMusicOpen(v);play("click");}} settings={settings}/>
+          <NotifTicker/>
+          {musicOpen&&<MusicPlayer onClose={()=>{setMusicOpen(false);play("close");}}/>}
+          <div style={{paddingTop:topOffset}}>
+            {screen==="intro"&&ready&&<IntroScreen onEnter={()=>{setScreen("hub");play("success");}}/>}
+            {screen==="hub"&&<CommandHub onOpen={openPanelFn} user={user}/>}
+          </div>
+          {ActivePanel&&<ActivePanel onClose={closePanel} user={user} currentUser={user} onLogin={handleLogin}/>}
+          {statusPanel&&user&&<MyStatusPanel user={user} onClose={()=>{setStatusPanel(false);play("close");}}/>}
+          {loginPanel&&!user&&<LoginPanel onClose={()=>{setLoginPanel(false);play("close");}} onLogin={handleLogin}/>}
+          {accountPanel&&user&&<AccountPanel user={user} onClose={()=>{setAccountPanel(false);play("close");}} onLogin={setUser} onLogout={handleLogout}/>}
+        </>
+      )}
     </>
   );
 }
 
 export default function App(){
-  return <ToastProvider><AppInner/></ToastProvider>;
+  return <ToastProvider><SettingsProvider><AppInner/></SettingsProvider></ToastProvider>;
 }
