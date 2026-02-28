@@ -2581,12 +2581,13 @@ function ServerPanel({onClose,user}){
   // Bridge-powered start/stop — works for admin + granted players
   const bridgeAction=async(action,actingUser)=>{
     const actor=actingUser||user;
-    const url=srv?.bridgeUrl;
+    const freshSrv=await DB.getServer();
+    const url=freshSrv?.bridgeUrl;
     if(!url){toast("No Bridge URL set. Contact admin.","var(--red)","⚠");return;}
     if(!isLive){toast("Oracle bridge offline — cannot send command.","var(--amber)","⚠");return;}
     try{
       setSaving(true);
-      const res=await fetch(`${url}/server/${action}`,{method:"POST",headers:{"Content-Type":"application/json","X-API-Key":srv.bridgeApiKey||""},signal:AbortSignal.timeout(8000)});
+      const res=await fetch(`${url}/server/${action}`,{method:"POST",headers:{"Content-Type":"application/json","X-API-Key":freshSrv.bridgeApiKey||""},signal:AbortSignal.timeout(8000)});
       if(!res.ok)throw new Error(await res.text());
       toast(`Bridge: ${action.toUpperCase()} command sent.`,"var(--green)","✅");
       await DB.pushConsoleLog({type:"system",message:`[Bridge] ${actor.username} sent /${action} via panel.`,source:"bridge",sentBy:actor.username});
@@ -6704,11 +6705,12 @@ function ConsolePanel({ onClose, user }) {
 
     if (isLive && bridge) {
       // Real execution via bridge HTTP API
-      const url = (await DB.getServer())?.bridgeUrl;
+      const srv = await DB.getServer();
+      const url = srv?.bridgeUrl;
       try {
         const res = await fetch(`${url}/console/command`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-API-Key": srv?.bridgeApiKey || "" },
           body: JSON.stringify({ command: cmd, sentBy: user.username }),
           signal: AbortSignal.timeout(6000),
         });
@@ -6901,7 +6903,7 @@ function JarControlPanel({ onClose, user }) {
     if (!url) { toast("No Bridge URL set. Admin → Server → Edit.", "var(--red)", "⚠"); return; }
     try {
       setSaving(true);
-      const res = await fetch(`${url}/server/${action}`, { method:"POST", headers:{"Content-Type":"application/json"}, signal:AbortSignal.timeout(8000) });
+      const res = await fetch(`${url}/server/${action}`, { method:"POST", headers:{"Content-Type":"application/json","X-API-Key":srv?.bridgeApiKey||""}, signal:AbortSignal.timeout(8000) });
       if (!res.ok) throw new Error(await res.text());
       toast(`Bridge: ${action.toUpperCase()} sent.`, "var(--green)", "✅");
       await DB.pushConsoleLog({ type:"system", message:`[JAR Control] /${action} sent by ${user.username}`, source:"bridge" });
