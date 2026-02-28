@@ -2586,7 +2586,7 @@ function ServerPanel({onClose,user}){
     if(!isLive){toast("Oracle bridge offline — cannot send command.","var(--amber)","⚠");return;}
     try{
       setSaving(true);
-      const res=await fetch(`${url}/server/${action}`,{method:"POST",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(8000)});
+      const res=await fetch(`${url}/server/${action}`,{method:"POST",headers:{"Content-Type":"application/json","X-API-Key":srv.bridgeApiKey||""},signal:AbortSignal.timeout(8000)});
       if(!res.ok)throw new Error(await res.text());
       toast(`Bridge: ${action.toUpperCase()} command sent.`,"var(--green)","✅");
       await DB.pushConsoleLog({type:"system",message:`[Bridge] ${actor.username} sent /${action} via panel.`,source:"bridge",sentBy:actor.username});
